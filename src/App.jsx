@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ExcelImport from './components/ExcelImport';
 import './App.css';
+import { db, ref, onValue, set } from './firebase';
 
 // Sample Data
 const initialGuests = [
@@ -14,30 +15,47 @@ const initialGuests = [
 function App() {
   const [guests, setGuests] = useState(() => {
     const saved = localStorage.getItem('event_guests');
-    // Use initialGuests ONLY if the key doesn't exist at all
     return saved !== null ? JSON.parse(saved) : initialGuests;
   });
   const [searchTerm, setSearchTerm] = useState('');
-  const [view, setView] = useState('dashboard'); // 'dashboard', 'list', 'report', 'import'
+  const [view, setView] = useState('dashboard');
+  const [isSynced, setIsSynced] = useState(false);
 
+  // Real-time synchronization listener
   useEffect(() => {
-    localStorage.setItem('event_guests', JSON.stringify(guests));
-  }, [guests]);
+    const guestsRef = ref(db, 'guests');
+    const unsubscribe = onValue(guestsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setGuests(data);
+        localStorage.setItem('event_guests', JSON.stringify(data));
+      } else {
+        // If snapshot is empty (e.g. after reset), set empty state
+        setGuests([]);
+        localStorage.setItem('event_guests', JSON.stringify([]));
+      }
+      setIsSynced(true);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const toggleArrival = (id) => {
-    setGuests(prev => prev.map(g =>
+    const updatedGuests = guests.map(g =>
       g.id === id ? { ...g, arrived: !g.arrived } : g
-    ));
+    );
+    // Writing to Firebase triggers the onValue listener for all devices
+    set(ref(db, 'guests'), updatedGuests);
   };
 
   const handleImport = (newGuests) => {
-    setGuests(prev => [...prev, ...newGuests]);
+    const updatedGuests = [...guests, ...newGuests];
+    set(ref(db, 'guests'), updatedGuests);
     setView('list');
   };
 
   const handleReset = () => {
-    setGuests([]);
-    localStorage.setItem('event_guests', JSON.stringify([]));
+    set(ref(db, 'guests'), []);
   };
 
   const filteredGuests = guests.filter(g =>
@@ -54,7 +72,15 @@ function App() {
   return (
     <div className="app-container">
       <header className="glass-header">
-        <div className="logo">EVENT<span>TABAL</span></div>
+        <div className="logo-section">
+          <div className="logo">EVENT<span>TABAL</span></div>
+          {isSynced && (
+            <div className="sync-indicator">
+              <span className="sync-dot"></span>
+              Live Sync
+            </div>
+          )}
+        </div>
         <nav>
           <button
             className={`nav-btn ${view === 'dashboard' ? 'active' : ''}`}
