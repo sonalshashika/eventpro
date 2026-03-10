@@ -4,15 +4,13 @@ import { getDatabase, ref, onValue, set, push, child, remove } from "firebase/da
 // Firebase configuration using environment variables for safety
 // In a real project, you would store these in a .env file
 const firebaseConfig = {
-    // These are placeholders. You can replace them with your actual Firebase config.
-    // I am setting up a default structure that will work with the Realtime Database.
-    apiKey: "AIzaSy...",
+    apiKey: "AIzaSyBViUyD7Sj25Cr9NU7j4FSTCWADdmn_RIw",
     authDomain: "events-tabal.firebaseapp.com",
-    databaseURL: "https://events-tabal-default-rtdb.firebaseio.com",
     projectId: "events-tabal",
-    storageBucket: "events-tabal.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "1:123456789:web:abcdef"
+    storageBucket: "events-tabal.firebasestorage.app",
+    messagingSenderId: "4784023188",
+    appId: "1:4784023188:web:430c8ff5c474cd35cab681",
+    databaseURL: "https://events-tabal-default-rtdb.firebaseio.com/"
 };
 
 const app = initializeApp(firebaseConfig);
