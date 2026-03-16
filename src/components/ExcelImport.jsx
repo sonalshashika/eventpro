@@ -75,7 +75,21 @@ function ExcelImport({ onImport, onReset, showReset = true, enabledProps = { cat
         const ws = XLSX.utils.aoa_to_sheet([headers]);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Template");
-        XLSX.writeFile(wb, "Guest_List_Template.xlsx");
+        
+        // Generate Excel file as array buffer
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        
+        // Create blob with explicit MIME type
+        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        
+        // Trigger download
+        const url = URL.createObjectURL(blob);
+        const a = document.body.appendChild(document.createElement('a'));
+        a.href = url;
+        a.download = 'Guest_List_Template.xlsx';
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     };
 
     const [resetStep, setResetStep] = React.useState(0);
