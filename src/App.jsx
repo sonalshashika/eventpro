@@ -473,6 +473,7 @@ function App() {
               onReset={handleReset} 
               showReset={isAdmin} 
               enabledProps={enabledProps}
+              customColumns={customColumns}
             />
           </div>
         )}

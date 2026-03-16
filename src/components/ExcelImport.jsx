@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import * as XLSX from 'xlsx';
 
-function ExcelImport({ onImport, onReset, showReset = true, enabledProps = { category: true, table: true } }) {
+function ExcelImport({ onImport, onReset, showReset = true, enabledProps = { category: true, table: true }, customColumns = [] }) {
     const fileInputRef = useRef(null);
 
     const handleFileUpload = (e) => {
@@ -16,29 +16,43 @@ function ExcelImport({ onImport, onReset, showReset = true, enabledProps = { cat
             const ws = wb.Sheets[wsname];
             const data = XLSX.utils.sheet_to_json(ws);
 
-            // Map Excel columns to our guest object structure
-            // Supporting variations of column names (e.g., Catagory vs Category)
             const formattedData = data.map((item, index) => {
                 const guest = {
-                    id: Date.now() + index,
+                    id: `guest_import_${Date.now()}_${index}`,
                     name: item.Name || item.name || 'Unknown',
-                    arrived: false
+                    arrived: false,
+                    statuses: {}
                 };
 
                 if (enabledProps.table) {
-                    const rawTable = item['Table Number'] || item['table'] || '0';
-                    guest.table = parseInt(String(rawTable).replace(/\D/g, '')) || 0;
+                    const rawTable = item['Table Number'] || item['table'] || item['Table'] || '0';
+                    guest.table = String(rawTable).trim();
                 }
 
                 if (enabledProps.category) {
                     guest.category = 
-                        item['Catagory'] ||
                         item['Category'] ||
-                        item['catagory'] ||
                         item['category'] ||
+                        item['Catagory'] ||
+                        item['catagory'] ||
                         'Guest';
                     guest.category = String(guest.category).trim();
                 }
+
+                // Map Custom Columns
+                customColumns.forEach(col => {
+                    const value = item[col.label] || item[col.id];
+                    if (value !== undefined) {
+                        if (col.type === 'toggle') {
+                            const valStr = String(value).toLowerCase();
+                            guest.statuses[col.id] = ['yes', 'true', '1', 'y'].includes(valStr);
+                        } else {
+                            guest.statuses[col.id] = String(value).trim();
+                        }
+                    } else {
+                        guest.statuses[col.id] = col.type === 'toggle' ? false : '';
+                    }
+                });
 
                 return guest;
             });
@@ -47,6 +61,21 @@ function ExcelImport({ onImport, onReset, showReset = true, enabledProps = { cat
             if (fileInputRef.current) fileInputRef.current.value = '';
         };
         reader.readAsBinaryString(file);
+    };
+
+    const downloadTemplate = () => {
+        const headers = ['Name'];
+        if (enabledProps.category) headers.push('Category');
+        if (enabledProps.table) headers.push('Table Number');
+        
+        customColumns.forEach(col => {
+            headers.push(col.label);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet([headers]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Template");
+        XLSX.writeFile(wb, "Guest_List_Template.xlsx");
     };
 
     const [resetStep, setResetStep] = React.useState(0);
@@ -83,6 +112,9 @@ function ExcelImport({ onImport, onReset, showReset = true, enabledProps = { cat
                             style={{ display: 'none' }}
                         />
                     </label>
+                    <button className="btn-secondary" onClick={downloadTemplate}>
+                        Download Template
+                    </button>
                     {showReset && (
                         <>
                             <button
