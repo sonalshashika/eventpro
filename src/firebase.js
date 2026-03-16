@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, onValue, set, push, child, remove } from "firebase/database";
+import { getDatabase, ref, onValue, set, push, child, remove, get } from "firebase/database";
 
 // Firebase configuration using environment variables for safety
 // In a real project, you would store these in a .env file
@@ -16,4 +16,4 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-export { db, ref, onValue, set, push, child, remove };
+export { db, ref, onValue, set, push, child, remove, get };

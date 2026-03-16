@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import * as XLSX from 'xlsx';
 
-function ExcelImport({ onImport, onReset }) {
+function ExcelImport({ onImport, onReset, showReset = true, enabledProps = { category: true, table: true } }) {
     const fileInputRef = useRef(null);
 
     const handleFileUpload = (e) => {
@@ -19,25 +19,28 @@ function ExcelImport({ onImport, onReset }) {
             // Map Excel columns to our guest object structure
             // Supporting variations of column names (e.g., Catagory vs Category)
             const formattedData = data.map((item, index) => {
-                const rawTable = item['Table Number'] || item['table'] || '0';
-                const tableNum = parseInt(String(rawTable).replace(/\D/g, '')) || 0;
-
-                // Robust category detection
-                const categoryValue =
-                    item['Catagory'] ||
-                    item['Category'] ||
-                    item['catagory'] ||
-                    item['category'] ||
-                    'Guest';
-
-                return {
+                const guest = {
                     id: Date.now() + index,
                     name: item.Name || item.name || 'Unknown',
-                    phone: '',
-                    table: tableNum,
-                    category: String(categoryValue).trim(),
                     arrived: false
                 };
+
+                if (enabledProps.table) {
+                    const rawTable = item['Table Number'] || item['table'] || '0';
+                    guest.table = parseInt(String(rawTable).replace(/\D/g, '')) || 0;
+                }
+
+                if (enabledProps.category) {
+                    guest.category = 
+                        item['Catagory'] ||
+                        item['Category'] ||
+                        item['catagory'] ||
+                        item['category'] ||
+                        'Guest';
+                    guest.category = String(guest.category).trim();
+                }
+
+                return guest;
             });
 
             onImport(formattedData);
@@ -63,7 +66,12 @@ function ExcelImport({ onImport, onReset }) {
         <div className="import-controls">
             <div className="glass-card import-card">
                 <h3>Import Guest List</h3>
-                <p className="text-muted">Upload an Excel (.xlsx) or CSV file with Name, Table Number, and Catagary columns.</p>
+                <p className="text-muted">
+                    Upload an Excel (.xlsx) or CSV file. 
+                    Mandatory: Name. 
+                    {enabledProps.table && ' Optional: Table Number.'}
+                    {enabledProps.category && ' Optional: Category.'}
+                </p>
                 <div className="import-actions">
                     <label className="btn-primary">
                         Upload File
@@ -75,19 +83,23 @@ function ExcelImport({ onImport, onReset }) {
                             style={{ display: 'none' }}
                         />
                     </label>
-                    <button
-                        className={`btn-secondary ${resetStep > 0 ? 'warning-active' : ''}`}
-                        onClick={handleResetClick}
-                        onMouseLeave={() => resetStep > 0 && setResetStep(0)}
-                    >
-                        {resetStep === 0 && 'Reset All Data'}
-                        {resetStep === 1 && 'Are you sure?'}
-                        {resetStep === 2 && 'REALLY SURE?'}
-                    </button>
-                    {resetStep > 0 && (
-                        <p className="reset-hint animate-fade-in">
-                            Click again to confirm. Mouse away to cancel.
-                        </p>
+                    {showReset && (
+                        <>
+                            <button
+                                className={`btn-secondary ${resetStep > 0 ? 'warning-active' : ''}`}
+                                onClick={handleResetClick}
+                                onMouseLeave={() => resetStep > 0 && setResetStep(0)}
+                            >
+                                {resetStep === 0 && 'Reset All Data'}
+                                {resetStep === 1 && 'Are you sure?'}
+                                {resetStep === 2 && 'REALLY SURE?'}
+                            </button>
+                            {resetStep > 0 && (
+                                <p className="reset-hint animate-fade-in">
+                                    Click again to confirm. Mouse away to cancel.
+                                </p>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
