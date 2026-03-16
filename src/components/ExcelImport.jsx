@@ -84,12 +84,18 @@ function ExcelImport({ onImport, onReset, showReset = true, enabledProps = { cat
         
         // Trigger download
         const url = URL.createObjectURL(blob);
-        const a = document.body.appendChild(document.createElement('a'));
+        const a = document.createElement('a');
+        a.style.display = 'none';
         a.href = url;
         a.download = 'Guest_List_Template.xlsx';
+        document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        
+        // Delay revocation to ensure the browser has time to start the download with the correct filename
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 100);
     };
 
     const [resetStep, setResetStep] = React.useState(0);
