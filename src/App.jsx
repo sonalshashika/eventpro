@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; 
+import React, { useState, useEffect, useMemo } from 'react'; 
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ExcelImport from './components/ExcelImport'; 
 import Login from './components/Login';
@@ -48,13 +48,7 @@ function App() {
   useEffect(() => { 
     if (!user || !currentEventId) return;
     
-    // SECURITY GATE: Prevent syncing data for unauthorized events
-    if (!authorizedEvents.find(e => e.id === currentEventId)) {
-        if (guests.length > 0) setGuests([]);
-        if (isSynced) setIsSynced(false);
-        return;
-    }
-
+    // Data sync
     const guestsRef = ref(db, `eventData/${currentEventId}/guests`); 
     const unsubscribe = onValue(guestsRef, (snapshot) => { 
       const data = snapshot.val(); 
@@ -62,19 +56,13 @@ function App() {
       setIsSynced(true); 
     }); 
     return () => unsubscribe(); 
-  }, [user, currentEventId, authorizedEvents, guests.length, isSynced]); 
+  }, [user, currentEventId]); 
 
   // Real-time synchronization listener for initial loading and current event sync
   useEffect(() => {
     if (!user || !currentEventId) return;
     
-    // SECURITY GATE: Prevent syncing config for unauthorized events
-    if (!authorizedEvents.find(e => e.id === currentEventId)) {
-        if (customColumns.length > 0) setCustomColumns([]);
-        return;
-    }
-    
-    // Listen for custom columns
+    // Config sync
     const columnsRef = ref(db, `eventData/${currentEventId}/config/columns`);
     const unsubscribeCols = onValue(columnsRef, (snapshot) => {
       setCustomColumns(snapshot.val() || []);
@@ -90,7 +78,7 @@ function App() {
       unsubscribeCols();
       unsubscribeProps();
     };
-  }, [user, currentEventId, authorizedEvents, customColumns.length]);
+  }, [user, currentEventId]);
 
   const updateGuestField = (id, field, value) => { 
     if (!currentEventId) return;
@@ -131,29 +119,51 @@ function App() {
     }
   }; 
 
-  const filteredGuests = guests.filter(g => {
+  // SECURITY GATE: Filter data for unauthorized events at the consumption level
+  const displayedGuests = useMemo(() => {
+    if (!user || !currentEventId) return [];
+    const isAuthorized = authorizedEvents.find(e => e.id === currentEventId);
+    return isAuthorized ? guests : [];
+  }, [guests, authorizedEvents, currentEventId, user]);
+
+  const displayedCustomColumns = useMemo(() => {
+    if (!user || !currentEventId) return [];
+    const isAuthorized = authorizedEvents.find(e => e.id === currentEventId);
+    return isAuthorized ? customColumns : [];
+  }, [customColumns, authorizedEvents, currentEventId, user]);
+
+  const filteredGuests = displayedGuests.filter(g => {
     const searchLower = searchTerm.toLowerCase();
     
     // Core search (Name)
-    if (g.name.toLowerCase().includes(searchLower)) return true;
+    if (g.name && g.name.toLowerCase().includes(searchLower)) return true;
     
-    // Optional Category search
+    // Optional fields search
     if (enabledProps.category && g.category && g.category.toLowerCase().includes(searchLower)) return true;
+    if (g.phone && g.phone.toLowerCase().includes(searchLower)) return true;
+    if (g.email && g.email.toLowerCase().includes(searchLower)) return true;
+
+    // Table search
+    if (enabledProps.tableNumber && g.tableNumber && String(g.tableNumber).toLowerCase().includes(searchLower)) return true;
     
     // Custom Searchable Columns
-    return customColumns.some(col => 
+    return displayedCustomColumns.some(col => 
       col.searchable && 
       g.statuses && 
-      g.statuses[col.id] && 
+      g.statuses[col.id] !== undefined && 
+      g.statuses[col.id] !== null &&
       String(g.statuses[col.id]).toLowerCase().includes(searchLower)
     );
   }); 
 
-  const stats = { 
-    total: guests.length, 
-    arrived: guests.filter(g => g.arrived).length, 
-    pending: guests.filter(g => !g.arrived).length 
-  }; 
+  const stats = useMemo(() => {
+    const arrived = displayedGuests.filter(g => g.arrived).length;
+    return {
+      total: displayedGuests.length,
+      arrived,
+      pending: displayedGuests.length - arrived
+    };
+  }, [displayedGuests]);
 
   if (!user) {
     return (
@@ -748,7 +758,7 @@ function AdminPanel({ columns, enabledProps }) {
               {events
                 .filter(event => isAdmin || (event.managers && event.managers[user?.uid]) || event.managerId === user?.uid)
                 .map((event) => (
-                <div key={event.id} className="column-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '1rem', padding: '1rem' }}>
+                <div key={event.id} className="column-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.75rem', padding: '0.75rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <div style={{ fontWeight: '600', fontSize: '1.1rem' }}>{event.name}</div>
@@ -768,7 +778,7 @@ function AdminPanel({ columns, enabledProps }) {
                   {/* Manager Assignment (Admin only) */}
                   {isAdmin && (
                     <div className="manager-toggle-row" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.5rem' }}>
-                      <p className="small text-muted" style={{ width: '100%', fontSize: '10px' }}>Assign Managers:</p>
+                      <p className="small text-muted" style={{ width: '100%', fontSize: '10px', marginBottom: '0.25rem' }}>Assign Managers:</p>
                       {Object.entries(systemUsers)
                         .filter(([, u]) => u.role === 'manager')
                         .map(([uid, u]) => (
@@ -786,7 +796,7 @@ function AdminPanel({ columns, enabledProps }) {
 
                   {/* Staff Assignment (Admin & Manager) */}
                   <div className="manager-toggle-row" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.5rem' }}>
-                    <p className="small text-muted" style={{ width: '100%', fontSize: '10px' }}>Assign Staff Access:</p>
+                    <p className="small text-muted" style={{ width: '100%', fontSize: '10px', marginBottom: '0.25rem' }}>Assign Staff Access:</p>
                     {Object.entries(systemUsers)
                       .filter(([, u]) => u.role === 'staff')
                       .map(([uid, u]) => (
