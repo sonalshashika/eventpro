@@ -74,23 +74,7 @@ export function AuthProvider({ children }) {
         }
     };
 
-    const setupAdmin = async (initialPassword) => {
-        const adminId = 'admin_' + Date.now();
-        const adminData = {
-            username: 'admin',
-            password: initialPassword,
-            role: 'admin'
-        };
-        await set(ref(db, `users/${adminId}`), adminData);
-        
-        // Log in immediately
-        const sessionUser = { uid: adminId, username: 'admin' };
-        setUser(sessionUser);
-        setRole('admin');
-        localStorage.setItem('currentUser', JSON.stringify(sessionUser));
-        localStorage.setItem('currentRole', 'admin');
-        return adminId;
-    };
+
 
     const createSystemUser = async (username, password, selectedRole) => {
         const uid = 'user_' + Date.now();
@@ -117,7 +101,6 @@ export function AuthProvider({ children }) {
         role,
         login,
         logout,
-        setupAdmin,
         createSystemUser,
         deleteUser,
         changePassword,

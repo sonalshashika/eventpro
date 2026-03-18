@@ -6,7 +6,7 @@ function Login() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const { login, setupAdmin } = useAuth();
+    const { login } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -20,20 +20,7 @@ function Login() {
         }
     };
 
-    const handleSetupAdmin = async () => {
-        if (!password || password.length < 6) {
-            setError('Please enter at least 6 characters for the password before initializing.');
-            return;
-        }
-        try {
-            await setupAdmin(password);
-            setError('');
-            alert('Admin account created! You are now logged in.');
-            navigate('/');
-        } catch (err) {
-            setError('Setup failed: ' + err.message);
-        }
-    };
+
 
     return (
         <div className="login-container animate-fade-in">
@@ -67,19 +54,6 @@ function Login() {
                         />
                     </div>
                     <button type="submit" className="btn-primary w-full">Sign In</button>
-                    <div style={{ marginTop: '20px', textAlign: 'center' }}>
-                        <p className="text-muted" style={{ fontSize: '0.8rem', marginBottom: '10px' }}>
-                            First time using the system?
-                        </p>
-                        <button 
-                            type="button" 
-                            onClick={handleSetupAdmin}
-                            className="btn-secondary w-full"
-                            style={{ opacity: 0.8, fontSize: '0.9rem' }}
-                        >
-                            Initialize Admin Account
-                        </button>
-                    </div>
                 </form>
             </div>
         </div>
