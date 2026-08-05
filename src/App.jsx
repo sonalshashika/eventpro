@@ -429,7 +429,15 @@ function App() {
                     <div className="guest-actions">
                       <button 
                         className={`btn-primary w-full ${guest.arrived ? 'secondary' : ''}`}
-                        onClick={() => updateGuestField(guest.id, 'arrived', !guest.arrived)}
+                        onClick={() => {
+                          if (guest.arrived) {
+                            if (window.confirm("Are you sure you want to undo this guest's arrival?")) {
+                              updateGuestField(guest.id, 'arrived', false);
+                            }
+                          } else {
+                            updateGuestField(guest.id, 'arrived', true);
+                          }
+                        }}
                       >
                         {guest.arrived ? 'Undo Arrival' : 'Mark as Arrived'}
                       </button>
