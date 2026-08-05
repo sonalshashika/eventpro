@@ -9,6 +9,8 @@ import QRInvitation from './components/QRInvitation';
 import Scanner from './components/Scanner';
 import { generateBulkTickets } from './utils/bulkGenerate';
 import * as XLSX from 'xlsx';
+import AuditLog from './components/AuditLog';
+import { logAction } from './utils/logger';
 
 function App() { 
   const { user, role, logout, isAdmin, isManager, events, currentEventId, setCurrentEventId } = useAuth();
@@ -91,16 +93,23 @@ function App() {
     };
   }, [user, currentEventId]);
 
-  const updateGuestField = (id, field, value) => { 
+  const updateGuestField = (id, field, value, guestName = 'Unknown Guest') => { 
     if (!currentEventId) return;
     const updatedGuests = guests.map(g => g.id === id ? { ...g, [field]: value } : g ); 
     set(ref(db, `eventData/${currentEventId}/guests`), updatedGuests); 
+    
+    let action = `Updated ${field}`;
+    if (field === 'arrived') action = value ? 'Manual Check-in' : 'Undo Check-in';
+    else if (field === 'statuses') action = 'Updated Status';
+    
+    logAction(currentEventId, user, action, `Guest: ${guestName}`);
   }; 
 
   const handleImport = (newGuests) => { 
     if (!isManager || !currentEventId) return;
     const updatedGuests = [...guests, ...newGuests]; 
     set(ref(db, `eventData/${currentEventId}/guests`), updatedGuests); 
+    logAction(currentEventId, user, 'Imported Guests', `Imported ${newGuests.length} guests.`);
     setView('list'); 
   }; 
 
@@ -119,6 +128,7 @@ function App() {
 
     const updatedGuests = [...guests, newGuest];
     set(ref(db, `eventData/${currentEventId}/guests`), updatedGuests);
+    logAction(currentEventId, user, 'Added Guest', `Guest: ${newGuest.name}`);
     setNewGuestForm({ name: '', category: '', table: '', statuses: {} });
     setShowAddForm(false);
   };
@@ -127,6 +137,7 @@ function App() {
     if (!isAdmin || !currentEventId) return;
     if (window.confirm('Clear all guests for this event?')) {
       set(ref(db, `eventData/${currentEventId}/guests`), []); 
+      logAction(currentEventId, user, 'Reset Guest List', 'Cleared all guests.');
     }
   }; 
   
@@ -297,10 +308,16 @@ function App() {
           )}
 
           {(isAdmin || isManager) && (
-            <button 
-              className={`nav-btn ${view === 'admin' ? 'active' : ''}`}
-              onClick={() => handleNav('admin')}
-            >{isAdmin ? 'Admin' : 'Team'}</button>
+            <>
+              <button 
+                className={`nav-btn ${view === 'logs' ? 'active' : ''}`}
+                onClick={() => handleNav('logs')}
+              >Logs</button>
+              <button 
+                className={`nav-btn ${view === 'admin' ? 'active' : ''}`}
+                onClick={() => handleNav('admin')}
+              >{isAdmin ? 'Admin' : 'Team'}</button>
+            </>
           )}
           
           <button 
@@ -463,10 +480,10 @@ function App() {
                         onClick={() => {
                           if (guest.arrived) {
                             if (window.confirm("Are you sure you want to undo this guest's arrival?")) {
-                              updateGuestField(guest.id, 'arrived', false);
+                              updateGuestField(guest.id, 'arrived', false, guest.name);
                             }
                           } else {
-                            updateGuestField(guest.id, 'arrived', true);
+                            updateGuestField(guest.id, 'arrived', true, guest.name);
                           }
                         }}
                       >
@@ -492,7 +509,7 @@ function App() {
                             value={(guest.statuses && guest.statuses[col.id]) || ''}
                             onChange={(e) => {
                               const newStatuses = { ...(guest.statuses || {}), [col.id]: e.target.value };
-                              updateGuestField(guest.id, 'statuses', newStatuses);
+                              updateGuestField(guest.id, 'statuses', newStatuses, guest.name);
                             }}
                           />
                         ) : (
@@ -502,7 +519,7 @@ function App() {
                             style={{ marginTop: '0.75rem', width: '100%' }}
                             onClick={() => {
                               const newStatuses = { ...(guest.statuses || {}), [col.id]: !(guest.statuses && guest.statuses[col.id]) };
-                              updateGuestField(guest.id, 'statuses', newStatuses);
+                              updateGuestField(guest.id, 'statuses', newStatuses, guest.name);
                             }}
                           >
                             {col.label}: {guest.statuses && guest.statuses[col.id] ? 'YES' : 'NO'}
@@ -584,6 +601,10 @@ function App() {
               customColumns={customColumns}
             />
           </div>
+        )}
+
+        {view === 'logs' && (isAdmin || isManager) && (
+          <AuditLog currentEventId={currentEventId} />
         )}
 
         {view === 'admin' && (isAdmin || isManager) && (

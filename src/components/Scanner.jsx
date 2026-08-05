@@ -1,8 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { db, ref, set, get } from '../firebase';
+import { useAuth } from '../context/AuthContext';
+import { logAction } from '../utils/logger';
 
 export default function Scanner({ currentEventId }) {
+  const { user } = useAuth();
   const [scanResult, setScanResult] = useState(null);
   const [error, setError] = useState(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -112,6 +115,7 @@ export default function Scanner({ currentEventId }) {
               guest: guest,
               message: 'Guest has ALREADY been checked in!'
             });
+            logAction(currentEventId, user, 'Scan Attempt (Already Arrived)', `Guest: ${guest.name}`);
           } else {
             // Update to arrived
             const updatedGuests = [...guests];
@@ -123,6 +127,7 @@ export default function Scanner({ currentEventId }) {
               guest: guest,
               message: 'Check-in successful!'
             });
+            logAction(currentEventId, user, 'Scanned Checked-in', `Guest: ${guest.name}`);
             
             // Play success sound (optional, assuming we have a generic beep)
             // const audio = new Audio('/success-beep.mp3');
