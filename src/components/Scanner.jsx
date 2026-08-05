@@ -10,24 +10,22 @@ export default function Scanner({ currentEventId }) {
   // Hardware Scanner state
   const bufferRef = useRef('');
   const timeoutRef = useRef(null);
+  const qrCodeRef = useRef(null);
 
   // Initialize Camera Scanner
   useEffect(() => {
     if (!isCameraActive) return;
 
     const html5QrCode = new Html5Qrcode("qr-reader");
+    qrCodeRef.current = html5QrCode;
 
     const onScanSuccess = (decodedText, decodedResult) => {
       // Pause scanner to prevent multiple rapid scans
-      html5QrCode.pause();
-      processScan(decodedText).finally(() => {
-        setTimeout(() => {
-          // 3 is the value for PAUSED state in Html5Qrcode
-          if (html5QrCode.getState() === 3) {
-            html5QrCode.resume();
-          }
-        }, 2000); // Resume after 2s
-      });
+      // 2 is the value for SCANNING state in Html5Qrcode
+      if (html5QrCode.getState() === 2) {
+        html5QrCode.pause();
+      }
+      processScan(decodedText);
     };
 
     html5QrCode.start(
@@ -54,6 +52,9 @@ export default function Scanner({ currentEventId }) {
   // Hardware Scanner Listener (Global Keyboard)
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Ignore if currently displaying a result or error (waiting for OK)
+      if (scanResult || error) return;
+
       // Ignore if typing in an input field
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
@@ -136,12 +137,15 @@ export default function Scanner({ currentEventId }) {
     } catch (err) {
       setError("Error processing scan: " + err.message);
     }
-    
-    // Auto-clear result after 5 seconds
-    setTimeout(() => {
-      setScanResult(null);
-      setError(null);
-    }, 5000);
+  };
+
+  const handleNextScan = () => {
+    setScanResult(null);
+    setError(null);
+    bufferRef.current = '';
+    if (qrCodeRef.current && qrCodeRef.current.getState() === 3 /* PAUSED */) {
+      qrCodeRef.current.resume();
+    }
   };
 
   return (
@@ -177,20 +181,26 @@ export default function Scanner({ currentEventId }) {
       {/* Result Display */}
       <div className="scan-results mx-auto mt-4" style={{ maxWidth: '500px' }}>
         {error && (
-          <div className="alert alert-danger animate-scale-in">
+          <div className="alert alert-danger animate-scale-in text-center">
             <strong>Error:</strong> {error}
+            <div className="mt-3">
+              <button className="btn-primary" onClick={handleNextScan}>OK / Next Scan</button>
+            </div>
           </div>
         )}
         
         {scanResult && (
           <div className={`alert alert-${scanResult.type} animate-scale-in text-center`}>
-            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>
               {scanResult.type === 'success' ? '✅' : '⚠️'}
             </div>
-            <h3>{scanResult.guest.name}</h3>
-            <p><strong>Status:</strong> {scanResult.message}</p>
+            <h2>{scanResult.guest.name}</h2>
+            <p style={{ fontSize: '1.25rem' }}><strong>Status:</strong> {scanResult.message}</p>
             {scanResult.guest.category && <p><strong>Category:</strong> {scanResult.guest.category}</p>}
             {scanResult.guest.table && <p><strong>Table:</strong> {scanResult.guest.table}</p>}
+            <div className="mt-4">
+              <button className="btn-primary w-100" style={{ fontSize: '1.25rem', padding: '1rem' }} onClick={handleNextScan}>OK / Next Scan</button>
+            </div>
           </div>
         )}
       </div>
