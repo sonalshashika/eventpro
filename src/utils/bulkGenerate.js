@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import QRCode from 'qrcode';
 
-export const generateBulkTickets = async (guests, eventName, onProgress) => {
+export const generateBulkTickets = async (guests, eventName, onProgress, eventLogoUrl = null) => {
   const zip = new JSZip();
   const folder = zip.folder(`${eventName.replace(/[^a-zA-Z0-9_-]/g, '_')}_Tickets`);
 
@@ -33,15 +33,40 @@ export const generateBulkTickets = async (guests, eventName, onProgress) => {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Header (Event Name)
-    ctx.fillStyle = "#0f172a";
-    ctx.font = "bold 32px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText(eventName, canvas.width / 2, 60);
+    if (eventLogoUrl) {
+      try {
+        const logoImg = new Image();
+        logoImg.crossOrigin = "Anonymous";
+        await new Promise((resolve, reject) => {
+          logoImg.onload = resolve;
+          logoImg.onerror = reject;
+          logoImg.src = eventLogoUrl;
+        });
+        
+        // Scale logo to fit max width 300, max height 80
+        const scale = Math.min(300 / logoImg.width, 80 / logoImg.height);
+        const w = logoImg.width * scale;
+        const h = logoImg.height * scale;
+        const x = (canvas.width - w) / 2;
+        ctx.drawImage(logoImg, x, 15, w, h);
+      } catch (err) {
+        console.error("Failed to load logo", err);
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 32px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(eventName, canvas.width / 2, 60);
+      }
+    } else {
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "bold 32px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(eventName, canvas.width / 2, 60);
+    }
 
     ctx.fillStyle = "#64748b";
     ctx.font = "18px Arial";
-    ctx.fillText("Official Entry Ticket", canvas.width / 2, 95);
+    ctx.textAlign = "center";
+    ctx.fillText("Official Entry Ticket", canvas.width / 2, 105);
 
     // Draw QR Code in center
     const img = new Image();

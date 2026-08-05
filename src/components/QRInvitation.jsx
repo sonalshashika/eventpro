@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 
-export default function QRInvitation({ guest, eventName, onClose }) {
+export default function QRInvitation({ guest, eventName, eventLogo, onClose }) {
   const qrRef = useRef();
 
   const handleDownload = () => {
@@ -44,7 +44,11 @@ export default function QRInvitation({ guest, eventName, onClose }) {
         <button className="close-btn" onClick={onClose}>✕</button>
         
         <div className="invitation-card" ref={qrRef}>
-          <h3>{eventName}</h3>
+          {eventLogo ? (
+            <img src={eventLogo} alt="Event Logo" style={{ maxHeight: '80px', objectFit: 'contain', marginBottom: '1rem', width: '100%' }} />
+          ) : (
+            <h3>{eventName}</h3>
+          )}
           <p className="invite-subtitle">Official Entry Ticket</p>
           
           <div className="qr-wrapper">

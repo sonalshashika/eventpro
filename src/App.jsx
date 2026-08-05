@@ -143,14 +143,15 @@ function App() {
   
   const handleBulkDownload = async () => {
     if (!currentEventId || filteredGuests.length === 0) return;
-    const eventName = authorizedEvents.find(e => e.id === currentEventId)?.name || 'Event';
+    const eventObj = authorizedEvents.find(e => e.id === currentEventId);
+    const eventName = eventObj?.name || 'Event';
     setIsGeneratingBulk(true);
     setBulkProgress(0);
     
     try {
       await generateBulkTickets(filteredGuests, eventName, (progress) => {
         setBulkProgress(progress);
-      });
+      }, eventObj?.logoUrl);
     } catch (err) {
       console.error("Bulk generation error", err);
       alert("Failed to generate bulk tickets.");
@@ -244,11 +245,17 @@ function App() {
     );
   }
 
+  const currentEventObj = authorizedEvents.find(e => e.id === currentEventId);
+
   return ( 
     <div className="app-container"> 
       <header className="glass-header"> 
         <div className="logo-section"> 
-          <div className="logo">EVENT<span>PRO</span></div> 
+          {currentEventObj?.logoUrl ? (
+            <img src={currentEventObj.logoUrl} alt="Event Logo" style={{ height: '32px', objectFit: 'contain' }} />
+          ) : (
+            <div className="logo">EVENT<span>PRO</span></div> 
+          )}
           
           <div className="event-selector-container">
             <select 
@@ -618,6 +625,7 @@ function App() {
         <QRInvitation 
           guest={selectedGuestForQR} 
           eventName={authorizedEvents.find(e => e.id === currentEventId)?.name || "Event"} 
+          eventLogo={currentEventObj?.logoUrl}
           onClose={() => setSelectedGuestForQR(null)} 
         />
       )}
@@ -643,7 +651,7 @@ function AdminPanel({ columns, enabledProps }) {
   const { user, changePassword, createSystemUser, deleteUser, isAdmin, isManager, events, currentEventId, setCurrentEventId } = useAuth();
   
   // State for new event creation
-  const [newEvent, setNewEvent] = useState({ name: '', managers: {} });
+  const [newEvent, setNewEvent] = useState({ name: '', managers: {}, logoUrl: '' });
 
   // State for tracking deletions in progress
   const [deletingIds, setDeletingIds] = useState([]);
@@ -762,10 +770,11 @@ function AdminPanel({ columns, enabledProps }) {
         const eventId = `event_${Date.now()}`;
         const eventData = {
             name: newEvent.name,
-            managers: newEvent.managers || {}
+            managers: newEvent.managers || {},
+            logoUrl: newEvent.logoUrl || ''
         };
         await set(ref(db, `events/${eventId}`), eventData);
-        setNewEvent({ name: '', managers: {} });
+        setNewEvent({ name: '', managers: {}, logoUrl: '' });
         setCurrentEventId(eventId);
         console.log("AdminPanel: Event created and selected", eventId);
     } catch (err) {
@@ -850,11 +859,16 @@ function AdminPanel({ columns, enabledProps }) {
             
             {isAdmin && (
               <div className="add-col-form" style={{ marginBottom: '2rem', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', width: '100%', flexWrap: 'wrap' }}>
                   <input 
                     type="text" className="input-glass" placeholder="Event Name (e.g., PF Event)" 
                     value={newEvent.name}
                     onChange={(e) => setNewEvent({...newEvent, name: e.target.value})}
+                  />
+                  <input 
+                    type="text" className="input-glass" placeholder="Logo URL (optional)" 
+                    value={newEvent.logoUrl || ''}
+                    onChange={(e) => setNewEvent({...newEvent, logoUrl: e.target.value})}
                   />
                   <button className="btn-primary" onClick={handleCreateEvent}>Create</button>
                 </div>
@@ -905,6 +919,31 @@ function AdminPanel({ columns, enabledProps }) {
                       </button>
                     )}
                   </div>
+                  
+                  {isAdmin && (
+                    <div style={{ marginTop: '0.2rem', display: 'flex', gap: '0.5rem' }}>
+                      <input 
+                        type="text" 
+                        className="input-glass" 
+                        style={{ padding: '0.4rem', fontSize: '0.8rem' }}
+                        placeholder="Logo URL (e.g. https://imgur.com/logo.png)" 
+                        defaultValue={event.logoUrl || ''} 
+                        id={`logo-input-${event.id}`}
+                      />
+                      <button 
+                        className="btn-primary" 
+                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                        onClick={() => {
+                          const val = document.getElementById(`logo-input-${event.id}`).value;
+                          set(ref(db, `events/${event.id}/logoUrl`), val)
+                            .then(() => alert('Logo Updated!'))
+                            .catch(e => alert(e.message));
+                        }}
+                      >
+                        Save Logo
+                      </button>
+                    </div>
+                  )}
                   
                   {/* Manager Assignment (Admin only) */}
                   {isAdmin && (
