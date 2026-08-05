@@ -8,6 +8,7 @@ import { db, ref, onValue, set, get } from './firebase';
 import QRInvitation from './components/QRInvitation';
 import Scanner from './components/Scanner';
 import { generateBulkTickets } from './utils/bulkGenerate';
+import * as XLSX from 'xlsx';
 
 function App() { 
   const { user, role, logout, isAdmin, isManager, events, currentEventId, setCurrentEventId } = useAuth();
@@ -192,6 +193,36 @@ function App() {
       pending: displayedGuests.length - arrived
     };
   }, [displayedGuests]);
+
+  const handleExportReport = () => {
+    if (!guests || guests.length === 0) return;
+    
+    const data = guests.map(g => {
+      const row = { Name: g.name };
+      
+      if (enabledProps.category) row.Category = g.category || '';
+      if (enabledProps.table) row.Table = g.table || '';
+      
+      row.Status = g.arrived ? 'Arrived' : 'Pending';
+      
+      customColumns.forEach(col => {
+        if (col.type === 'text') {
+          row[col.label] = (g.statuses && g.statuses[col.id]) || '';
+        } else {
+          row[col.label] = g.statuses && g.statuses[col.id] ? 'Yes' : 'No';
+        }
+      });
+      
+      return row;
+    });
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Attendance Report");
+    
+    const eventName = authorizedEvents.find(e => e.id === currentEventId)?.name || 'Event';
+    XLSX.writeFile(wb, `${eventName.replace(/[^a-zA-Z0-9_-]/g, '_')}_Report.xlsx`);
+  };
 
   if (!user) {
     return (
@@ -498,7 +529,10 @@ function App() {
 
         {view === 'report' && (
           <div className="report-view glass-card animate-fade-in">
-            <h3>Event Attendance Report</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>Event Attendance Report</h3>
+              <button className="btn-primary" onClick={handleExportReport}>Export to Excel</button>
+            </div>
             <table className="report-table">
               <thead>
                 <tr>
