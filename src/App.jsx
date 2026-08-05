@@ -621,6 +621,10 @@ function App() {
           onClose={() => setSelectedGuestForQR(null)} 
         />
       )}
+      
+      <footer style={{ textAlign: 'center', padding: '1.5rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem', letterSpacing: '0.5px' }}>
+        developed by Darshana Jayawardena
+      </footer>
     </div>
   );
 }
