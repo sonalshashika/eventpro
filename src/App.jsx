@@ -4,7 +4,9 @@ import ExcelImport from './components/ExcelImport';
 import Login from './components/Login';
 import { useAuth } from './context/AuthContext';
 import './App.css'; 
-import { db, ref, onValue, set } from './firebase'; 
+import { db, ref, onValue, set, get } from './firebase'; 
+import QRInvitation from './components/QRInvitation';
+import Scanner from './components/Scanner';
 
 function App() { 
   const { user, role, logout, isAdmin, isManager, events, currentEventId, setCurrentEventId } = useAuth();
@@ -33,6 +35,9 @@ function App() {
   // Manual Entry State
   const [showAddForm, setShowAddForm] = useState(false);
   const [newGuestForm, setNewGuestForm] = useState({ name: '', category: '', table: '', statuses: {} });
+  
+  // QR Invitation State
+  const [selectedGuestForQR, setSelectedGuestForQR] = useState(null);
 
   // Auto-select event if none selected and events exist
   useEffect(() => {
@@ -221,6 +226,11 @@ function App() {
           >Guest List</button>
           
           <button 
+            className={`nav-btn ${view === 'scanner' ? 'active' : ''}`}
+            onClick={() => handleNav('scanner')}
+          >Scanner</button>
+          
+          <button 
             className={`nav-btn ${view === 'report' ? 'active' : ''}`}
             onClick={() => handleNav('report')}
           >Report</button>
@@ -390,6 +400,14 @@ function App() {
                         {guest.arrived ? 'Undo Arrival' : 'Mark as Arrived'}
                       </button>
                       
+                      <button 
+                        className="btn-action w-full mt-2"
+                        onClick={() => setSelectedGuestForQR(guest)}
+                        style={{ marginTop: '0.5rem', background: 'rgba(255, 255, 255, 0.1)', color: 'white', padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}
+                      >
+                        View QR Ticket
+                      </button>
+                      
                       {customColumns.map(col => (
                         col.type === 'text' ? (
                           <input
@@ -430,6 +448,10 @@ function App() {
               )}
             </div>
           </div>
+        )}
+
+        {view === 'scanner' && (
+          <Scanner currentEventId={currentEventId} />
         )}
 
         {view === 'report' && (
@@ -494,6 +516,14 @@ function App() {
           </div>
         )}
       </main>
+      
+      {selectedGuestForQR && (
+        <QRInvitation 
+          guest={selectedGuestForQR} 
+          eventName={authorizedEvents.find(e => e.id === currentEventId)?.name || "Event"} 
+          onClose={() => setSelectedGuestForQR(null)} 
+        />
+      )}
     </div>
   );
 }
