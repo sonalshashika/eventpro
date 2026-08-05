@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { db, ref, set, get } from '../firebase';
 
 export default function Scanner({ currentEventId }) {
@@ -15,26 +15,39 @@ export default function Scanner({ currentEventId }) {
   useEffect(() => {
     if (!isCameraActive) return;
 
-    const scanner = new Html5QrcodeScanner(
-      "qr-reader",
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      false
-    );
+    const html5QrCode = new Html5Qrcode("qr-reader");
 
     const onScanSuccess = (decodedText, decodedResult) => {
       // Pause scanner to prevent multiple rapid scans
-      scanner.pause(true);
+      html5QrCode.pause();
       processScan(decodedText).finally(() => {
-        setTimeout(() => scanner.resume(), 2000); // Resume after 2s
+        setTimeout(() => {
+          // 3 is the value for PAUSED state in Html5Qrcode
+          if (html5QrCode.getState() === 3) {
+            html5QrCode.resume();
+          }
+        }, 2000); // Resume after 2s
       });
     };
 
-    scanner.render(onScanSuccess, (err) => {
-      // Ignore scan failures as they happen continuously when no QR code is in frame
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      onScanSuccess,
+      (err) => {
+        // Ignore scan failures as they happen continuously
+      }
+    ).catch(err => {
+      console.error("Error starting camera", err);
+      setError("Failed to start camera. Please ensure permissions are granted and device has a camera.");
     });
 
     return () => {
-      scanner.clear().catch(console.error);
+      if (html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => {
+          html5QrCode.clear();
+        }).catch(console.error);
+      }
     };
   }, [isCameraActive, currentEventId]);
 

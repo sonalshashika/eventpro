@@ -769,4 +769,44 @@ main {
   .stat-card .value { font-size: 2rem; }
   .guest-grid { grid-template-columns: 1fr; }
   .title { font-size: 1.75rem; }
+  
+  /* Additional Mobile Tweaks */
+  .modal-content {
+    padding: 1.25rem;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  .invitation-card {
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  
+  .qr-wrapper svg {
+    max-width: 150px;
+    max-height: 150px;
+  }
+  
+  .guest-name {
+    font-size: 1.25rem;
+  }
+  
+  .btn-action, .btn-primary {
+    padding: 0.75rem; /* Larger touch targets */
+    font-size: 1rem;
+  }
+  
+  .scanner-container {
+    padding: 1rem;
+  }
+  
+  .hardware-scanner-placeholder {
+    padding: 1.5rem 1rem !important;
+  }
+}
+
+/* Ensure bottom space for mobile browser bars */
+body {
+  padding-bottom: env(safe-area-inset-bottom);
 }
