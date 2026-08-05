@@ -7,6 +7,7 @@ import './App.css';
 import { db, ref, onValue, set, get } from './firebase'; 
 import QRInvitation from './components/QRInvitation';
 import Scanner from './components/Scanner';
+import { generateBulkTickets } from './utils/bulkGenerate';
 
 function App() { 
   const { user, role, logout, isAdmin, isManager, events, currentEventId, setCurrentEventId } = useAuth();
@@ -38,6 +39,10 @@ function App() {
   
   // QR Invitation State
   const [selectedGuestForQR, setSelectedGuestForQR] = useState(null);
+  
+  // Bulk Download State
+  const [isGeneratingBulk, setIsGeneratingBulk] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState(0);
 
   // Auto-select event if none selected and events exist
   useEffect(() => {
@@ -123,6 +128,24 @@ function App() {
       set(ref(db, `eventData/${currentEventId}/guests`), []); 
     }
   }; 
+  
+  const handleBulkDownload = async () => {
+    if (!currentEventId || filteredGuests.length === 0) return;
+    const eventName = authorizedEvents.find(e => e.id === currentEventId)?.name || 'Event';
+    setIsGeneratingBulk(true);
+    setBulkProgress(0);
+    
+    try {
+      await generateBulkTickets(filteredGuests, eventName, (progress) => {
+        setBulkProgress(progress);
+      });
+    } catch (err) {
+      console.error("Bulk generation error", err);
+      alert("Failed to generate bulk tickets.");
+    } finally {
+      setIsGeneratingBulk(false);
+    }
+  };
 
   // SECURITY GATE: Filter data for unauthorized events at the consumption level
   const displayedGuests = useMemo(() => {
@@ -288,14 +311,25 @@ function App() {
           <div className="list-view animate-fade-in">
             <div className="list-header animate-slide-right stagger-1">
               <h2 className="title">Guest Management</h2>
-              {isManager && (
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button 
-                  className={`btn-primary ${showAddForm ? 'btn-danger' : ''}`} 
-                  onClick={() => setShowAddForm(!showAddForm)}
+                  className="btn-action"
+                  onClick={handleBulkDownload}
+                  disabled={isGeneratingBulk || filteredGuests.length === 0}
+                  style={{ whiteSpace: 'nowrap' }}
                 >
-                  {showAddForm ? 'Cancel' : 'Add Guest'}
+                  {isGeneratingBulk ? `Generating... ${bulkProgress}%` : `Bulk Download (${filteredGuests.length})`}
                 </button>
-              )}
+                {isManager && (
+                  <button 
+                    className={`btn-primary ${showAddForm ? 'btn-danger' : ''}`} 
+                    onClick={() => setShowAddForm(!showAddForm)}
+                    style={{ whiteSpace: 'nowrap' }}
+                  >
+                    {showAddForm ? 'Cancel' : 'Add Guest'}
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="search-bar animate-slide-right stagger-2">
