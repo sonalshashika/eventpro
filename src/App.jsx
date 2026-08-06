@@ -847,7 +847,7 @@ function AdminPanel({ columns, enabledProps }) {
   };
 
   return (
-    <div className="admin-panel animate-fade-in" style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) 400px', gap: '2rem' }}>
+    <div className="admin-panel animate-fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
       <div className="glass-card" style={{ padding: '2rem' }}>
         <h3>System Configuration</h3>
         
