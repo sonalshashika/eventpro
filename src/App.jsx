@@ -1069,7 +1069,7 @@ function AdminPanel({ columns, enabledProps }) {
 
         <div className="config-section" style={{ marginTop: '2rem' }}>
           <h4>User Accounts</h4>
-          <div className="users-list" style={{ marginTop: '1rem' }}>
+          <div className="users-list custom-scrollbar" style={{ marginTop: '1rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>
             {Object.entries(systemUsers)
               .filter(([uid, data]) => {
                 if (isAdmin) return true;
