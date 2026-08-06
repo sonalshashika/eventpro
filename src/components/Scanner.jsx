@@ -15,6 +15,40 @@ export default function Scanner({ currentEventId }) {
   const timeoutRef = useRef(null);
   const qrCodeRef = useRef(null);
 
+  // Play audio feedback
+  const playSound = (type) => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      if (type === 'success') {
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.4);
+      } else if (type === 'warning') {
+        osc.frequency.setValueAtTime(440, ctx.currentTime);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.5);
+      } else {
+        osc.frequency.setValueAtTime(220, ctx.currentTime);
+        osc.frequency.setValueAtTime(180, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.5);
+      }
+    } catch(e) {
+      // Audio not supported, silently fail
+    }
+  };
+
   // Initialize Camera Scanner
   useEffect(() => {
     if (!isCameraActive) return;
@@ -116,6 +150,7 @@ export default function Scanner({ currentEventId }) {
               message: 'Guest has ALREADY been checked in!'
             });
             logAction(currentEventId, user, 'Scan Attempt (Already Arrived)', `Guest: ${guest.name}`);
+            playSound('warning');
           } else {
             // Update to arrived
             const updatedGuests = [...guests];
@@ -128,13 +163,11 @@ export default function Scanner({ currentEventId }) {
               message: 'Check-in successful!'
             });
             logAction(currentEventId, user, 'Scanned Checked-in', `Guest: ${guest.name}`);
-            
-            // Play success sound (optional, assuming we have a generic beep)
-            // const audio = new Audio('/success-beep.mp3');
-            // audio.play().catch(e => console.log('Audio play failed', e));
+            playSound('success');
           }
         } else {
           setError(`Invalid QR Code. Guest not found in this event. (ID: ${guestId})`);
+          playSound('error');
         }
       } else {
         setError("Event data not found.");

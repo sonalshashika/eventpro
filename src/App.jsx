@@ -38,7 +38,7 @@ function App() {
   
   // Manual Entry State
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newGuestForm, setNewGuestForm] = useState({ name: '', category: '', table: '', statuses: {} });
+  const [newGuestForm, setNewGuestForm] = useState({ name: '', category: '', table: '', companions: 0, statuses: {} });
   
   // QR Invitation State
   const [selectedGuestForQR, setSelectedGuestForQR] = useState(null);
@@ -122,6 +122,7 @@ function App() {
       name: newGuestForm.name,
       category: enabledProps.category ? newGuestForm.category : '',
       table: enabledProps.table ? newGuestForm.table : '',
+      companions: newGuestForm.companions || 0,
       arrived: false,
       statuses: newGuestForm.statuses || {}
     };
@@ -129,7 +130,7 @@ function App() {
     const updatedGuests = [...guests, newGuest];
     set(ref(db, `eventData/${currentEventId}/guests`), updatedGuests);
     logAction(currentEventId, user, 'Added Guest', `Guest: ${newGuest.name}`);
-    setNewGuestForm({ name: '', category: '', table: '', statuses: {} });
+    setNewGuestForm({ name: '', category: '', table: '', companions: 0, statuses: {} });
     setShowAddForm(false);
   };
 
@@ -199,10 +200,12 @@ function App() {
 
   const stats = useMemo(() => {
     const arrived = displayedGuests.filter(g => g.arrived).length;
+    const totalPeople = displayedGuests.reduce((sum, g) => sum + 1 + (g.companions || 0), 0);
     return {
       total: displayedGuests.length,
       arrived,
-      pending: displayedGuests.length - arrived
+      pending: displayedGuests.length - arrived,
+      totalPeople
     };
   }, [displayedGuests]);
 
@@ -352,6 +355,12 @@ function App() {
                 <span className="label">REMAINING</span>
                 <span className="value">{stats.pending}</span>
               </div>
+              {stats.totalPeople > stats.total && (
+                <div className="stat-card glass-card animate-scale-in stagger-4">
+                  <span className="label">TOTAL PEOPLE</span>
+                  <span className="value">{stats.totalPeople}</span>
+                </div>
+              )}
               {customColumns.filter(col => col.showOnDashboard).map((col, idx) => (
                   <div key={col.id} className="stat-card glass-card animate-scale-in" style={{ animationDelay: `${0.4 + idx * 0.1}s` }}>
                     <span className="label text-uppercase">{col.label}</span>
@@ -359,6 +368,66 @@ function App() {
                   </div>
               ))}
             </div>
+
+            {/* Arrival Progress Bar */}
+            {stats.total > 0 && (
+              <div className="glass-card animate-fade-in" style={{ marginTop: '1.5rem', padding: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                  <span style={{ fontWeight: '600' }}>Arrival Progress</span>
+                  <span style={{ color: 'var(--secondary)', fontWeight: '700', fontSize: '1.1rem' }}>
+                    {Math.round((stats.arrived / stats.total) * 100)}%
+                  </span>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.07)', borderRadius: '999px', height: '12px', overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${Math.round((stats.arrived / stats.total) * 100)}%`,
+                    background: 'linear-gradient(90deg, var(--primary), var(--secondary))',
+                    height: '100%',
+                    borderRadius: '999px',
+                    transition: 'width 0.8s cubic-bezier(0.23,1,0.32,1)',
+                    boxShadow: '0 0 12px rgba(99,102,241,0.5)'
+                  }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  <span>{stats.arrived} checked in</span>
+                  <span>{stats.pending} remaining</span>
+                </div>
+              </div>
+            )}
+
+            {/* Category Breakdown */}
+            {enabledProps.category && stats.total > 0 && (() => {
+              const cats = {};
+              displayedGuests.forEach(g => {
+                const cat = g.category || 'Uncategorised';
+                if (!cats[cat]) cats[cat] = { total: 0, arrived: 0 };
+                cats[cat].total++;
+                if (g.arrived) cats[cat].arrived++;
+              });
+              const catEntries = Object.entries(cats).sort((a, b) => b[1].total - a[1].total);
+              return catEntries.length > 1 ? (
+                <div className="glass-card animate-fade-in" style={{ marginTop: '1.5rem', padding: '1.5rem' }}>
+                  <h4 style={{ marginBottom: '1rem' }}>By Category</h4>
+                  {catEntries.map(([cat, data]) => (
+                    <div key={cat} style={{ marginBottom: '0.75rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontSize: '0.9rem' }}>
+                        <span>{cat}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{data.arrived}/{data.total}</span>
+                      </div>
+                      <div style={{ background: 'rgba(255,255,255,0.07)', borderRadius: '999px', height: '6px', overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${Math.round((data.arrived / data.total) * 100)}%`,
+                          background: 'linear-gradient(90deg, var(--primary), var(--secondary))',
+                          height: '100%',
+                          borderRadius: '999px',
+                          transition: 'width 0.8s cubic-bezier(0.23,1,0.32,1)'
+                        }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null;
+            })()}
           </div>
         )}
 
@@ -417,6 +486,11 @@ function App() {
                       value={newGuestForm.table} onChange={(e) => setNewGuestForm({...newGuestForm, table: e.target.value})}
                     />
                   )}
+                  <input 
+                    type="number" className="input-glass" placeholder="Companions / Plus-ones (0)" min="0" max="20"
+                    value={newGuestForm.companions || ''} 
+                    onChange={(e) => setNewGuestForm({...newGuestForm, companions: parseInt(e.target.value) || 0})}
+                  />
                   
                   {/* Custom Columns in Form */}
                   {customColumns.map(col => (
@@ -478,6 +552,11 @@ function App() {
                       <div className="table-info">
                         <span className="label">Table Number</span>
                         <span className="table-num">{guest.table}</span>
+                      </div>
+                    )}
+                    {guest.companions > 0 && (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                        👥 +{guest.companions} companion{guest.companions > 1 ? 's' : ''}
                       </div>
                     )}
 
