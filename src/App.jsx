@@ -1077,20 +1077,62 @@ function AdminPanel({ columns, enabledProps }) {
                 return uid === user?.uid || data.role === 'staff';
               })
               .map(([uid, data]) => (
-                <div key={uid} className="column-item" style={{ marginBottom: '0.5rem' }}>
-                  <div>
-                    <div style={{ fontWeight: '600' }}>{data.username || 'Unnamed'}</div>
-                    <div className="small text-muted">{data.role}</div>
+                <div key={uid} className="column-item" style={{ marginBottom: '0.5rem', flexDirection: 'column', alignItems: 'stretch' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: '600' }}>{data.username || 'Unnamed'}</div>
+                      {isAdmin && uid !== user?.uid ? (
+                        <select 
+                          className="input-glass" 
+                          style={{ padding: '2px 5px', fontSize: '10px', marginTop: '4px' }}
+                          value={data.role}
+                          onChange={(e) => set(ref(db, `users/${uid}/role`), e.target.value)}
+                        >
+                          <option value="staff">Staff</option>
+                          <option value="manager">Manager</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      ) : (
+                        <div className="small text-muted">{data.role}</div>
+                      )}
+                    </div>
+                    {uid !== user?.uid && (isAdmin || (isManager && data.role === 'staff')) && (
+                      <button 
+                        className="btn-icon-delete" 
+                        title="Revoke Access"
+                        onClick={() => revokeUserAccess(uid)}
+                        disabled={deletingIds.includes(uid)}
+                      >
+                        {deletingIds.includes(uid) ? '⌛' : '×'}
+                      </button>
+                    )}
                   </div>
-                  {uid !== user?.uid && (isAdmin || (isManager && data.role === 'staff')) && (
-                    <button 
-                      className="btn-icon-delete" 
-                      title="Revoke Access"
-                      onClick={() => revokeUserAccess(uid)}
-                      disabled={deletingIds.includes(uid)}
-                    >
-                      {deletingIds.includes(uid) ? '⌛' : '×'}
-                    </button>
+                  {isAdmin && (
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      <input 
+                        type="text" 
+                        className="input-glass" 
+                        style={{ padding: '0.3rem', fontSize: '0.8rem', flex: 1 }} 
+                        placeholder="New password..."
+                        id={`pwd-reset-${uid}`}
+                      />
+                      <button 
+                        className="btn-primary" 
+                        style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem' }}
+                        onClick={() => {
+                          const newPwd = document.getElementById(`pwd-reset-${uid}`).value;
+                          if (newPwd.length < 6) return alert("Password must be at least 6 characters.");
+                          set(ref(db, `users/${uid}/password`), newPwd)
+                            .then(() => {
+                              document.getElementById(`pwd-reset-${uid}`).value = '';
+                              alert(`Password updated for ${data.username}`);
+                            })
+                            .catch(e => alert(e.message));
+                        }}
+                      >
+                        Set Password
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
