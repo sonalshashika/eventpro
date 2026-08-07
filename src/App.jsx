@@ -761,7 +761,7 @@ function App() {
 
         {view === 'admin' && (isAdmin || isManager) && (
           <div className="animate-fade-in">
-            <AdminPanel columns={customColumns} enabledProps={enabledProps} />
+            <AdminPanel columns={customColumns} enabledProps={enabledProps} messagingSettings={messagingSettings} setMessagingSettings={setMessagingSettings} />
           </div>
         )}
       </main>
@@ -783,7 +783,7 @@ function App() {
   );
 }
 
-function AdminPanel({ columns, enabledProps }) {
+function AdminPanel({ columns, enabledProps, messagingSettings, setMessagingSettings }) {
   const [newColLabel, setNewColLabel] = useState('');
   const [newColType, setNewColType] = useState('toggle');
   const [newPassword, setNewPassword] = useState('');
