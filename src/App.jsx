@@ -8,6 +8,7 @@ import { db, ref, onValue, set, get } from './firebase';
 import QRInvitation from './components/QRInvitation';
 import Scanner from './components/Scanner';
 import { generateBulkTickets } from './utils/bulkGenerate';
+import { runEmailCampaign } from './utils/bulkEmail';
 import * as XLSX from 'xlsx';
 import AuditLog from './components/AuditLog';
 import { logAction } from './utils/logger';
@@ -47,6 +48,10 @@ function App() {
   // Bulk Download State
   const [isGeneratingBulk, setIsGeneratingBulk] = useState(false);
   const [bulkProgress, setBulkProgress] = useState(0);
+
+  // Bulk Email State
+  const [isSendingBulkEmails, setIsSendingBulkEmails] = useState(false);
+  const [emailProgress, setEmailProgress] = useState({ percent: 0, text: '' });
 
   // Auto-select event if none selected and events exist
   useEffect(() => {
@@ -120,6 +125,22 @@ function App() {
     
     logAction(currentEventId, user, action, `Guest: ${guestName}`);
   }; 
+
+  const handleBulkEmail = () => {
+    if (!currentEventId) return;
+    setIsSendingBulkEmails(true);
+    setEmailProgress({ percent: 0, text: 'Preparing campaign...' });
+    runEmailCampaign(
+      guests, 
+      authorizedEvents.find(e => e.id === currentEventId)?.name || 'Event', 
+      messagingSettings, 
+      currentEventObj?.logoUrl, 
+      (percent, text) => setEmailProgress({ percent, text }),
+      updateGuestField
+    ).finally(() => {
+      setTimeout(() => setIsSendingBulkEmails(false), 3000);
+    });
+  };
 
   const handleImport = (newGuests) => { 
     if (!isManager || !currentEventId) return;
@@ -359,6 +380,18 @@ function App() {
         {view === 'dashboard' && (
           <div className="dashboard-content animate-fade-in">
             <h2 className="title animate-slide-right stagger-1">Event Overview</h2>
+          {isGeneratingBulk && (
+            <div className="progress-bar-container">
+              <div className="progress-bar" style={{ width: `${bulkProgress}%` }}></div>
+              <span className="progress-text">Generating QRs: {bulkProgress}%</span>
+            </div>
+          )}
+          {isSendingBulkEmails && (
+            <div className="progress-bar-container" style={{ background: 'rgba(59, 130, 246, 0.1)', marginTop: '0.5rem' }}>
+              <div className="progress-bar" style={{ width: `${emailProgress.percent}%`, background: 'var(--primary)' }}></div>
+              <span className="progress-text">{emailProgress.text}</span>
+            </div>
+          )}
             
             <div className="stats-grid">
               <div className="stat-card glass-card animate-scale-in stagger-1">
@@ -502,6 +535,14 @@ function App() {
                 >
                   {isGeneratingBulk ? `Generating... ${bulkProgress}%` : `Bulk Download (${filteredGuests.length})`}
                 </button>
+                <button 
+                  className="btn-action"
+                  onClick={handleBulkEmail}
+                  disabled={isSendingBulkEmails || filteredGuests.length === 0 || !messagingSettings?.apiKey}
+                  style={{ whiteSpace: 'nowrap', borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                >
+                  {isSendingBulkEmails ? `Sending...` : `Bulk Email (${filteredGuests.length})`}
+                </button>
                 {isManager && (
                   <button 
                     className={`btn-primary ${showAddForm ? 'btn-danger' : ''}`} 
@@ -608,9 +649,16 @@ function App() {
                         </span>
                       )}
                     </div>
-                    <span className={`badge ${guest.arrived ? 'badge-success' : 'badge-pending'}`}>
-                      {guest.arrived ? 'ARRIVED' : 'PENDING'}
-                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem' }}>
+                      <span className={`badge ${guest.arrived ? 'badge-success' : 'badge-pending'}`}>
+                        {guest.arrived ? 'ARRIVED' : 'PENDING'}
+                      </span>
+                      {guest.emailStatus === 'sent' && (
+                        <span className="badge badge-success" style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.5)' }}>
+                          ✉️ SENT
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="card-body">
@@ -642,13 +690,32 @@ function App() {
                         {guest.arrived ? 'Undo Arrival' : 'Mark as Arrived'}
                       </button>
                       
-                      <button 
-                        className="btn-action w-full mt-2"
-                        onClick={() => setSelectedGuestForQR(guest)}
-                        style={{ marginTop: '0.5rem', background: 'rgba(255, 255, 255, 0.1)', color: 'white', padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}
-                      >
-                        View QR Ticket
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                        <button 
+                          className="btn-action w-full"
+                          onClick={() => setSelectedGuestForQR(guest)}
+                          style={{ background: 'rgba(255, 255, 255, 0.1)', color: 'white', padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}
+                        >
+                          View QR
+                        </button>
+                        {guest.email && (
+                          <button 
+                            className="btn-action w-full"
+                            disabled={!messagingSettings?.apiKey}
+                            onClick={() => {
+                              setSelectedGuestForQR(guest);
+                              setTimeout(() => {
+                                const emailBtn = document.getElementById('qr-email-btn');
+                                if (emailBtn) emailBtn.click();
+                              }, 100);
+                            }}
+                            title={!messagingSettings?.apiKey ? "Configure API Key in Settings first" : "Send Ticket via Email"}
+                            style={{ background: 'rgba(59, 130, 246, 0.1)', color: 'var(--primary)', padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+                          >
+                            ✉️ Email
+                          </button>
+                        )}
+                      </div>
                       
                       {customColumns.map(col => (
                         col.type === 'text' ? (
@@ -718,10 +785,15 @@ function App() {
                     <td>{guest.name}</td>
                     {enabledProps.category && <td style={{ textAlign: 'left' }}>{guest.category}</td>}
                     {enabledProps.table && <td style={{ textAlign: 'center' }}>{guest.table}</td>}
-                    <td style={{ textAlign: 'center' }}>
+                    <td style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.3rem', padding: '0.5rem' }}>
                       <span className={`badge ${guest.arrived ? 'badge-success' : 'badge-pending'}`}>
                         {guest.arrived ? 'Arrived' : 'Pending'}
                       </span>
+                      {guest.emailStatus === 'sent' && (
+                        <span className="badge badge-success" style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.5)', fontSize: '0.65rem' }}>
+                          ✉️ Sent
+                        </span>
+                      )}
                     </td>
                     {customColumns.map(col => (
                       <td key={col.id}>
@@ -768,11 +840,12 @@ function App() {
       
       {selectedGuestForQR && (
         <QRInvitation 
-          guest={selectedGuestForQR} 
-          eventName={authorizedEvents.find(e => e.id === currentEventId)?.name || "Event"} 
+          guest={selectedGuestForQR}
+          eventName={authorizedEvents.find(e => e.id === currentEventId)?.name || 'Event'}
           eventLogo={currentEventObj?.logoUrl}
           messagingSettings={messagingSettings}
-          onClose={() => setSelectedGuestForQR(null)} 
+          updateGuestField={updateGuestField}
+          onClose={() => setSelectedGuestForQR(null)}
         />
       )}
       

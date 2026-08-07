@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 
-export default function QRInvitation({ guest, eventName, eventLogo, messagingSettings, onClose }) {
+export default function QRInvitation({ guest, eventName, eventLogo, messagingSettings, updateGuestField, onClose }) {
   const qrRef = useRef();
   const [isEmailing, setIsEmailing] = useState(false);
   const [isSMSing, setIsSMSing] = useState(false);
@@ -61,14 +61,19 @@ export default function QRInvitation({ guest, eventName, eventLogo, messagingSet
           fromEmail: messagingSettings.fromEmail
         })
       });
+      
       if (res.ok) {
         alert('Email sent successfully!');
+        if (updateGuestField) {
+           updateGuestField(guest.id, 'emailStatus', 'sent', guest.name);
+           updateGuestField(guest.id, 'emailSentAt', Date.now(), guest.name);
+        }
       } else {
-        alert('Failed to send email.');
+        const error = await res.json();
+        alert(`Failed to send email: ${error.message}`);
       }
-    } catch (error) {
-      console.error(error);
-      alert('Error sending email.');
+    } catch (e) {
+      alert(`Error: ${e.message}`);
     } finally {
       setIsEmailing(false);
     }
