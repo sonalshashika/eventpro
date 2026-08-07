@@ -20,32 +20,39 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { email, guestName, eventName, ticketId, qrDataUrl } = req.body;
+    const { email, guestName, eventName, ticketId, qrDataUrl, apiKey, subject, htmlBody, fromEmail } = req.body;
 
-    if (!email || !guestName || !ticketId) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!email || !guestName || !ticketId || !apiKey) {
+      return res.status(400).json({ error: 'Missing required fields or API key' });
     }
 
-    // Initialize Resend with the provided key (or from env var for security on Vercel)
-    const RESEND_API_KEY = process.env.RESEND_API_KEY;
-    if (!RESEND_API_KEY) {
-      throw new Error("Missing RESEND_API_KEY environment variable.");
-    }
-    const resend = new Resend(RESEND_API_KEY);
+    // Initialize Resend with the provided key from the client
+    const resend = new Resend(apiKey);
 
-    // Send the email
-    const data = await resend.emails.send({
-      from: 'tickets@resend.dev', // Use resend.dev for testing unless you have a verified domain
-      to: email,
-      subject: `Your Ticket for ${eventName}`,
-      html: `
+    // Prepare template variables
+    const finalSubject = subject ? subject.replace(/{guestName}/g, guestName).replace(/{eventName}/g, eventName) : `Your Ticket for ${eventName}`;
+    
+    let finalHtml = '';
+    if (htmlBody) {
+      finalHtml = htmlBody.replace(/{guestName}/g, guestName).replace(/{eventName}/g, eventName).replace(/{ticketId}/g, ticketId);
+      finalHtml = `<div style="font-family: sans-serif;">${finalHtml}</div>`;
+    } else {
+      finalHtml = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Hi ${guestName},</h2>
           <p>Here is your official invitation for <strong>${eventName}</strong>.</p>
           <p>Please present the attached QR code ticket at the entrance.</p>
           <p style="color: #666; font-size: 0.9em;">Ticket ID: ${ticketId}</p>
         </div>
-      `,
+      `;
+    }
+
+    // Send the email
+    const data = await resend.emails.send({
+      from: fromEmail || 'tickets@resend.dev', // Fallback to resend.dev testing domain
+      to: email,
+      subject: finalSubject,
+      html: finalHtml,
       attachments: [
          { 
            filename: `${guestName.replace(/\s+/g, '_')}_Ticket.png`, 

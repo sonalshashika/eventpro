@@ -35,6 +35,7 @@ function App() {
   const [isSynced, setIsSynced] = useState(false); 
   const [customColumns, setCustomColumns] = useState([]);
   const [enabledProps, setEnabledProps] = useState({ category: true, table: true });
+  const [messagingSettings, setMessagingSettings] = useState({ apiKey: '', fromEmail: '', subject: '', htmlBody: '' });
   
   // Manual Entry State
   const [showAddForm, setShowAddForm] = useState(false);
@@ -81,15 +82,21 @@ function App() {
       setCustomColumns(snapshot.val() || []);
     });
 
-    // Listen for enabled properties (Category/Table)
     const propsRef = ref(db, `eventData/${currentEventId}/config/props`);
     const unsubscribeProps = onValue(propsRef, (snapshot) => {
       setEnabledProps(snapshot.val() || { category: true, table: true });
     });
 
+    // Listen for messaging settings
+    const msgRef = ref(db, `eventData/${currentEventId}/config/messaging`);
+    const unsubscribeMsg = onValue(msgRef, (snapshot) => {
+      setMessagingSettings(snapshot.val() || { apiKey: '', fromEmail: '', subject: '', htmlBody: '' });
+    });
+
     return () => {
       unsubscribeCols();
       unsubscribeProps();
+      unsubscribeMsg();
     };
   }, [user, currentEventId]);
 
@@ -764,6 +771,7 @@ function App() {
           guest={selectedGuestForQR} 
           eventName={authorizedEvents.find(e => e.id === currentEventId)?.name || "Event"} 
           eventLogo={currentEventObj?.logoUrl}
+          messagingSettings={messagingSettings}
           onClose={() => setSelectedGuestForQR(null)} 
         />
       )}
@@ -996,6 +1004,7 @@ function AdminPanel({ columns, enabledProps }) {
             <button className={`nav-btn ${activeTab === 'events' ? 'active' : ''}`} onClick={() => setActiveTab('events')}>Events</button>
             <button className={`nav-btn ${activeTab === 'columns' ? 'active' : ''}`} onClick={() => setActiveTab('columns')}>Columns</button>
             <button className={`nav-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>Users</button>
+            <button className={`nav-btn ${activeTab === 'messaging' ? 'active' : ''}`} onClick={() => setActiveTab('messaging')}>Messaging</button>
             <button className={`nav-btn ${activeTab === 'security' ? 'active' : ''}`} onClick={() => setActiveTab('security')}>Security</button>
           </div>
         </div>
@@ -1290,6 +1299,80 @@ function AdminPanel({ columns, enabledProps }) {
               ))}
           </div>
         </div>
+        )}
+
+        {activeTab === 'messaging' && (
+          <div className="admin-section animate-slide-right">
+            <h4>Email Gateway Settings</h4>
+            <p className="text-muted" style={{ marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+              Configure your email provider to send digital tickets. We recommend using <a href="https://resend.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>Resend</a>.
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', maxWidth: '600px' }}>
+              <div>
+                <label className="text-muted" style={{ fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem' }}>Resend API Key</label>
+                <input 
+                  type="password"
+                  className="input-glass"
+                  placeholder="re_XXXXXXXXXXXXXXXXXXXXXXXX"
+                  value={messagingSettings.apiKey}
+                  onChange={(e) => {
+                    const newSettings = { ...messagingSettings, apiKey: e.target.value };
+                    setMessagingSettings(newSettings);
+                    set(ref(db, `eventData/${currentEventId}/config/messaging`), newSettings);
+                  }}
+                />
+              </div>
+
+              <div>
+                <label className="text-muted" style={{ fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem' }}>Sender Email Address</label>
+                <input 
+                  type="text"
+                  className="input-glass"
+                  placeholder="tickets@resend.dev"
+                  value={messagingSettings.fromEmail}
+                  onChange={(e) => {
+                    const newSettings = { ...messagingSettings, fromEmail: e.target.value };
+                    setMessagingSettings(newSettings);
+                    set(ref(db, `eventData/${currentEventId}/config/messaging`), newSettings);
+                  }}
+                />
+                <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.3rem' }}>* Use tickets@resend.dev unless you have a verified domain on Resend.</p>
+              </div>
+
+              <div>
+                <label className="text-muted" style={{ fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem' }}>Email Subject</label>
+                <input 
+                  type="text"
+                  className="input-glass"
+                  placeholder="Your Ticket for {eventName}"
+                  value={messagingSettings.subject}
+                  onChange={(e) => {
+                    const newSettings = { ...messagingSettings, subject: e.target.value };
+                    setMessagingSettings(newSettings);
+                    set(ref(db, `eventData/${currentEventId}/config/messaging`), newSettings);
+                  }}
+                />
+                <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.3rem' }}>Available variables: {'{guestName}'}, {'{eventName}'}</p>
+              </div>
+
+              <div>
+                <label className="text-muted" style={{ fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem' }}>Email HTML Body</label>
+                <textarea 
+                  className="input-glass"
+                  placeholder="<p>Hi {guestName}, here is your ticket!</p>"
+                  rows={6}
+                  value={messagingSettings.htmlBody}
+                  onChange={(e) => {
+                    const newSettings = { ...messagingSettings, htmlBody: e.target.value };
+                    setMessagingSettings(newSettings);
+                    set(ref(db, `eventData/${currentEventId}/config/messaging`), newSettings);
+                  }}
+                />
+                <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.3rem' }}>Available variables: {'{guestName}'}, {'{eventName}'}, {'{ticketId}'}</p>
+              </div>
+            </div>
+          </div>
         )}
 
         {activeTab === 'security' && (

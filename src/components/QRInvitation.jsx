@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 
-export default function QRInvitation({ guest, eventName, eventLogo, onClose }) {
+export default function QRInvitation({ guest, eventName, eventLogo, messagingSettings, onClose }) {
   const qrRef = useRef();
   const [isEmailing, setIsEmailing] = useState(false);
   const [isSMSing, setIsSMSing] = useState(false);
@@ -41,6 +41,8 @@ export default function QRInvitation({ guest, eventName, eventLogo, onClose }) {
 
   const handleSendEmail = async () => {
     if (!guest.email) return alert('No email provided for this guest.');
+    if (!messagingSettings?.apiKey) return alert('Please configure the Resend API Key in Admin Settings first.');
+    
     setIsEmailing(true);
     try {
       const qrDataUrl = await getQRDataURL();
@@ -52,11 +54,15 @@ export default function QRInvitation({ guest, eventName, eventLogo, onClose }) {
           guestName: guest.name,
           eventName,
           ticketId: guest.id,
-          qrDataUrl
+          qrDataUrl,
+          apiKey: messagingSettings.apiKey,
+          subject: messagingSettings.subject,
+          htmlBody: messagingSettings.htmlBody,
+          fromEmail: messagingSettings.fromEmail
         })
       });
       if (res.ok) {
-        alert('Email framework called successfully! (Configure API keys in Vercel to send real emails)');
+        alert('Email sent successfully!');
       } else {
         alert('Failed to send email.');
       }
