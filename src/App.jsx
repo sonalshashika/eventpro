@@ -95,7 +95,16 @@ function App() {
 
   const updateGuestField = (id, field, value, guestName = 'Unknown Guest') => { 
     if (!currentEventId) return;
-    const updatedGuests = guests.map(g => g.id === id ? { ...g, [field]: value } : g ); 
+    const updatedGuests = guests.map(g => {
+      if (g.id === id) {
+        const newObj = { ...g, [field]: value };
+        if (field === 'arrived' && value === true) {
+          newObj.arrivedAt = Date.now();
+        }
+        return newObj;
+      }
+      return g;
+    }); 
     set(ref(db, `eventData/${currentEventId}/guests`), updatedGuests); 
     
     let action = `Updated ${field}`;
@@ -428,6 +437,46 @@ function App() {
                 </div>
               ) : null;
             })()}
+
+            {/* Dashboard Additions */}
+            <div className="dashboard-widgets" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginTop: '1.5rem' }}>
+              
+              {/* Quick Actions */}
+              <div className="glass-card animate-slide-right stagger-1" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <h4 style={{ marginBottom: '0.5rem' }}>Quick Actions</h4>
+                <button className="btn-primary" onClick={() => setView('scanner')} style={{ justifyContent: 'center' }}>📷 Scan QR Code</button>
+                <button className="btn-action" onClick={() => setView('list')} style={{ padding: '0.85rem', textAlign: 'center', width: '100%', border: '1px solid var(--primary)' }}>👥 Manage Guest List</button>
+                {isManager && (
+                  <button className="btn-action" onClick={() => setView('import')} style={{ padding: '0.85rem', textAlign: 'center', width: '100%' }}>📥 Import Guests Excel</button>
+                )}
+              </div>
+
+              {/* Recent Arrivals */}
+              <div className="glass-card animate-slide-right stagger-2" style={{ padding: '1.5rem' }}>
+                <h4 style={{ marginBottom: '1rem' }}>Recent Arrivals</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                  {displayedGuests
+                    .filter(g => g.arrived)
+                    .sort((a, b) => (b.arrivedAt || 0) - (a.arrivedAt || 0))
+                    .slice(0, 5)
+                    .map((guest, idx) => (
+                    <div key={guest.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', borderLeft: '3px solid var(--primary)' }}>
+                      <div>
+                        <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{guest.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          {guest.category || 'Guest'} {guest.companions > 0 ? `(+${guest.companions})` : ''}
+                        </div>
+                      </div>
+                      <span className="badge badge-success" style={{ fontSize: '0.65rem' }}>Arrived</span>
+                    </div>
+                  ))}
+                  {displayedGuests.filter(g => g.arrived).length === 0 && (
+                    <div className="text-muted small italic" style={{ textAlign: 'center', padding: '1rem 0' }}>No arrivals yet.</div>
+                  )}
+                </div>
+              </div>
+
+            </div>
           </div>
         )}
 
@@ -734,6 +783,9 @@ function AdminPanel({ columns, enabledProps }) {
 
   // State for tracking deletions in progress
   const [deletingIds, setDeletingIds] = useState([]);
+  
+  // Tab State
+  const [activeTab, setActiveTab] = useState('events');
 
   // Listen for all users
   useEffect(() => {
@@ -926,12 +978,20 @@ function AdminPanel({ columns, enabledProps }) {
   };
 
   return (
-    <div className="admin-panel animate-fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
-      <div className="glass-card" style={{ padding: '2rem' }}>
-        <h3>System Configuration</h3>
+    <div className="admin-panel animate-fade-in">
+      <div className="glass-card" style={{ padding: '2rem', width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <h3>Admin Dashboard</h3>
+          <div className="admin-tabs" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button className={`nav-btn ${activeTab === 'events' ? 'active' : ''}`} onClick={() => setActiveTab('events')}>Events</button>
+            <button className={`nav-btn ${activeTab === 'columns' ? 'active' : ''}`} onClick={() => setActiveTab('columns')}>Columns</button>
+            <button className={`nav-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>Users</button>
+            <button className={`nav-btn ${activeTab === 'security' ? 'active' : ''}`} onClick={() => setActiveTab('security')}>Security</button>
+          </div>
+        </div>
         
         {/* Event Management Section (Admin & Manager) */}
-        {isManager && (
+        {activeTab === 'events' && isManager && (
           <div className="config-section" style={{ marginTop: '2rem' }}>
             <h4>Event Management</h4>
             <p className="small text-muted">{isAdmin ? 'Create or remove events and assign teams.' : 'Manage staff access for your events.'}</p>
@@ -1070,7 +1130,8 @@ function AdminPanel({ columns, enabledProps }) {
         )}
 
         {/* Custom Columns Section */}
-        <div className="config-section" style={{ marginTop: '2rem' }}>
+        {activeTab === 'columns' && (
+          <div className="config-section animate-fade-in" style={{ marginTop: '0' }}>
           <h4>{currentEventId ? `Event Columns: ${events.find(e => e.id === currentEventId)?.name}` : 'Select an Event to manage columns'}</h4>
           <div className="add-col-form" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <input 
@@ -1145,8 +1206,10 @@ function AdminPanel({ columns, enabledProps }) {
             ))}
           </div>
         </div>
+        )}
 
-        <div className="config-section" style={{ marginTop: '2rem' }}>
+        {activeTab === 'users' && (
+          <div className="config-section animate-fade-in" style={{ marginTop: '0' }}>
           <h4>User Accounts</h4>
           <div className="users-list custom-scrollbar" style={{ marginTop: '1rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>
             {Object.entries(systemUsers)
@@ -1217,13 +1280,12 @@ function AdminPanel({ columns, enabledProps }) {
               ))}
           </div>
         </div>
-      </div>
+        )}
 
-      <div className="glass-card" style={{ padding: '2rem', height: 'fit-content' }}>
-        <h3>Security & Access</h3>
-        
-        {/* Create User Form */}
-        <div className="config-section">
+        {activeTab === 'security' && (
+          <div className="animate-fade-in">
+            {/* Create User Form */}
+            <div className="config-section" style={{ marginTop: '0' }}>
           <h4>Create New User</h4>
           <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <input 
@@ -1274,6 +1336,8 @@ function AdminPanel({ columns, enabledProps }) {
               Hard Reset Database
             </button>
           </div>
+        )}
+        </div>
         )}
       </div>
     </div>
