@@ -133,6 +133,7 @@ function App() {
     runEmailCampaign(
       guests, 
       authorizedEvents.find(e => e.id === currentEventId)?.name || 'Event', 
+      currentEventId,
       messagingSettings, 
       currentEventObj?.logoUrl, 
       (percent, text) => setEmailProgress({ percent, text }),
@@ -240,11 +241,15 @@ function App() {
   const stats = useMemo(() => {
     const arrived = displayedGuests.filter(g => g.arrived).length;
     const totalPeople = displayedGuests.reduce((sum, g) => sum + 1 + (g.companions || 0), 0);
+    const emailsSent = displayedGuests.filter(g => g.emailStatus === 'sent' || g.emailStatus === 'opened').length;
+    const emailsOpened = displayedGuests.filter(g => g.emailStatus === 'opened').length;
     return {
       total: displayedGuests.length,
       arrived,
       pending: displayedGuests.length - arrived,
-      totalPeople
+      totalPeople,
+      emailsSent,
+      emailsOpened
     };
   }, [displayedGuests]);
 
@@ -418,6 +423,17 @@ function App() {
                     <span className="value">{guests.filter(g => g.statuses && g.statuses[col.id]).length}</span>
                   </div>
               ))}
+            </div>
+
+            <div className="stats-grid" style={{ marginTop: '1rem' }}>
+              <div className="stat-card glass-card animate-scale-in stagger-4" style={{ background: 'rgba(59, 130, 246, 0.05)', borderColor: 'rgba(59, 130, 246, 0.2)' }}>
+                <span className="label" style={{ color: 'var(--primary)' }}>EMAILS SENT</span>
+                <span className="value">{stats.emailsSent}</span>
+              </div>
+              <div className="stat-card glass-card animate-scale-in stagger-5" style={{ background: 'rgba(34, 197, 94, 0.05)', borderColor: 'rgba(34, 197, 94, 0.2)' }}>
+                <span className="label" style={{ color: '#22c55e' }}>EMAILS OPENED</span>
+                <span className="value">{stats.emailsOpened}</span>
+              </div>
             </div>
 
             {/* Arrival Progress Bar */}
@@ -658,6 +674,11 @@ function App() {
                           ✉️ SENT
                         </span>
                       )}
+                      {guest.emailStatus === 'opened' && (
+                        <span className="badge badge-success" style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.5)' }}>
+                          👀 OPENED
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -794,6 +815,11 @@ function App() {
                           ✉️ Sent
                         </span>
                       )}
+                      {guest.emailStatus === 'opened' && (
+                        <span className="badge badge-success" style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.5)', fontSize: '0.65rem' }}>
+                          👀 Opened
+                        </span>
+                      )}
                     </td>
                     {customColumns.map(col => (
                       <td key={col.id}>
@@ -842,6 +868,7 @@ function App() {
         <QRInvitation 
           guest={selectedGuestForQR}
           eventName={authorizedEvents.find(e => e.id === currentEventId)?.name || 'Event'}
+          eventId={currentEventId}
           eventLogo={currentEventObj?.logoUrl}
           messagingSettings={messagingSettings}
           updateGuestField={updateGuestField}

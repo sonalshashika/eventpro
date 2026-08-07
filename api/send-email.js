@@ -20,7 +20,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { email, guestName, eventName, ticketId, qrDataUrl, apiKey, subject, htmlBody, fromEmail } = req.body;
+    const { email, guestName, eventName, eventId, ticketId, qrDataUrl, apiKey, subject, htmlBody, fromEmail } = req.body;
 
     if (!email || !guestName || !ticketId || !apiKey) {
       return res.status(400).json({ error: 'Missing required fields or API key' });
@@ -45,6 +45,13 @@ export default async function handler(req, res) {
           <p style="color: #666; font-size: 0.9em;">Ticket ID: ${ticketId}</p>
         </div>
       `;
+    }
+
+    // Embed Tracking Pixel if possible
+    if (eventId && ticketId && req.headers.host) {
+      const protocol = req.headers.host.includes('localhost') ? 'http' : 'https';
+      const trackingUrl = `${protocol}://${req.headers.host}/api/track-open?eventId=${eventId}&guestId=${ticketId}`;
+      finalHtml += `<img src="${trackingUrl}" width="1" height="1" style="display:none;" alt="" />`;
     }
 
     // Send the email

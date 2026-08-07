@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 
-export default function QRInvitation({ guest, eventName, eventLogo, messagingSettings, updateGuestField, onClose }) {
+export default function QRInvitation({ guest, eventName, eventId, eventLogo, messagingSettings, updateGuestField, onClose }) {
   const qrRef = useRef();
   const [isEmailing, setIsEmailing] = useState(false);
   const [isSMSing, setIsSMSing] = useState(false);
@@ -53,6 +53,7 @@ export default function QRInvitation({ guest, eventName, eventLogo, messagingSet
           email: guest.email,
           guestName: guest.name,
           eventName,
+          eventId,
           ticketId: guest.id,
           qrDataUrl,
           apiKey: messagingSettings.apiKey,

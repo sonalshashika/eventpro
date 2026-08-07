@@ -75,7 +75,7 @@ const getSilentQRDataURL = async (guest, eventName, eventLogoUrl) => {
   return canvas.toDataURL("image/png");
 };
 
-export const runEmailCampaign = async (guests, eventName, messagingSettings, eventLogoUrl, onProgress, updateGuestStatus) => {
+export const runEmailCampaign = async (guests, eventName, eventId, messagingSettings, eventLogoUrl, onProgress, updateGuestStatus) => {
   const eligibleGuests = guests.filter(g => g.email && g.email.includes('@'));
   if (eligibleGuests.length === 0) {
     alert("No guests with valid email addresses found!");
@@ -109,6 +109,7 @@ export const runEmailCampaign = async (guests, eventName, messagingSettings, eve
           email: guest.email,
           guestName: guest.name,
           eventName,
+          eventId,
           ticketId: guest.id,
           qrDataUrl,
           apiKey: messagingSettings.apiKey,
