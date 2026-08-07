@@ -1,34 +1,14 @@
 import React, { useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { getSilentQRDataURL } from '../utils/bulkEmail';
 
 export default function QRInvitation({ guest, eventName, eventId, eventLogo, messagingSettings, updateGuestField, onClose }) {
   const qrRef = useRef();
   const [isEmailing, setIsEmailing] = useState(false);
   const [isSMSing, setIsSMSing] = useState(false);
 
-  const getQRDataURL = () => {
-    return new Promise((resolve) => {
-      const svg = qrRef.current.querySelector('svg');
-      const svgData = new XMLSerializer().serializeToString(svg);
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      const img = new Image();
-      
-      img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height + 40; // Add padding for text
-        ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-        ctx.fillStyle = "black";
-        ctx.font = "20px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText(guest.name, canvas.width / 2, canvas.height - 15);
-        resolve(canvas.toDataURL("image/png"));
-      };
-      
-      img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
-    });
+  const getQRDataURL = async () => {
+    return await getSilentQRDataURL(guest, eventName, eventLogo);
   };
 
   const handleDownload = async () => {

@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 
 // Helper to generate the QR data URL silently
-const getSilentQRDataURL = async (guest, eventName, eventLogoUrl) => {
+export const getSilentQRDataURL = async (guest, eventName, eventLogoUrl) => {
   // Generate base QR
   const qrDataUrl = await QRCode.toDataURL(guest.id, {
     width: 250,
