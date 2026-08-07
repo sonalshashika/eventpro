@@ -1,3 +1,5 @@
+import { Resend } from 'resend';
+
 export default async function handler(req, res) {
   // CORS Headers for Vercel
   res.setHeader('Access-Control-Allow-Credentials', true)
@@ -24,23 +26,37 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // TODO: Add your Email Provider (e.g. Resend, SendGrid, Nodemailer) integration here.
-    // Example using Resend:
-    // const RESEND_API_KEY = process.env.RESEND_API_KEY;
-    // const resend = new Resend(RESEND_API_KEY);
-    // await resend.emails.send({
-    //   from: 'tickets@yourevent.com',
-    //   to: email,
-    //   subject: `Your Ticket for ${eventName}`,
-    //   html: `<p>Hi ${guestName},</p><p>Here is your ticket. ID: ${ticketId}</p>`,
-    //   attachments: [
-    //      { filename: 'ticket.png', content: qrDataUrl.split(',')[1] }
-    //   ]
-    // });
+    // Initialize Resend with the provided key (or from env var for security on Vercel)
+    const RESEND_API_KEY = process.env.RESEND_API_KEY;
+    if (!RESEND_API_KEY) {
+      throw new Error("Missing RESEND_API_KEY environment variable.");
+    }
+    const resend = new Resend(RESEND_API_KEY);
 
-    console.log(`[Email Gateway] Pretending to send email to ${email} for ${guestName}`);
+    // Send the email
+    const data = await resend.emails.send({
+      from: 'tickets@resend.dev', // Use resend.dev for testing unless you have a verified domain
+      to: email,
+      subject: `Your Ticket for ${eventName}`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Hi ${guestName},</h2>
+          <p>Here is your official invitation for <strong>${eventName}</strong>.</p>
+          <p>Please present the attached QR code ticket at the entrance.</p>
+          <p style="color: #666; font-size: 0.9em;">Ticket ID: ${ticketId}</p>
+        </div>
+      `,
+      attachments: [
+         { 
+           filename: `${guestName.replace(/\s+/g, '_')}_Ticket.png`, 
+           content: qrDataUrl.split(',')[1] // Extract base64 part
+         }
+      ]
+    });
+
+    console.log(`[Email Gateway] Successfully sent email to ${email} for ${guestName}`);
     
-    return res.status(200).json({ success: true, message: 'Email sent successfully (Simulated)' });
+    return res.status(200).json({ success: true, message: 'Email sent successfully', data });
   } catch (error) {
     console.error('Email API Error:', error);
     return res.status(500).json({ error: 'Failed to send email' });
