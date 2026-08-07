@@ -1,42 +1,100 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 
 export default function QRInvitation({ guest, eventName, eventLogo, onClose }) {
   const qrRef = useRef();
+  const [isEmailing, setIsEmailing] = useState(false);
+  const [isSMSing, setIsSMSing] = useState(false);
 
-  const handleDownload = () => {
-    const svg = qrRef.current.querySelector('svg');
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    const img = new Image();
-    
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height + 40; // Add padding for text
+  const getQRDataURL = () => {
+    return new Promise((resolve) => {
+      const svg = qrRef.current.querySelector('svg');
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const img = new Image();
       
-      // White background
-      ctx.fillStyle = "white";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height + 40; // Add padding for text
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        ctx.fillStyle = "black";
+        ctx.font = "20px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(guest.name, canvas.width / 2, canvas.height - 15);
+        resolve(canvas.toDataURL("image/png"));
+      };
       
-      ctx.drawImage(img, 0, 0);
-      
-      // Add name at bottom
-      ctx.fillStyle = "black";
-      ctx.font = "20px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText(guest.name, canvas.width / 2, canvas.height - 15);
-
-      const pngFile = canvas.toDataURL("image/png");
-      
-      const downloadLink = document.createElement("a");
-      downloadLink.download = `${guest.name.replace(/\s+/g, '_')}_Ticket.png`;
-      downloadLink.href = `${pngFile}`;
-      downloadLink.click();
-    };
-    
-    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+      img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+    });
   };
+
+  const handleDownload = async () => {
+    const pngFile = await getQRDataURL();
+    const downloadLink = document.createElement("a");
+    downloadLink.download = `${guest.name.replace(/\s+/g, '_')}_Ticket.png`;
+    downloadLink.href = pngFile;
+    downloadLink.click();
+  };
+
+  const handleSendEmail = async () => {
+    if (!guest.email) return alert('No email provided for this guest.');
+    setIsEmailing(true);
+    try {
+      const qrDataUrl = await getQRDataURL();
+      const res = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: guest.email,
+          guestName: guest.name,
+          eventName,
+          ticketId: guest.id,
+          qrDataUrl
+        })
+      });
+      if (res.ok) {
+        alert('Email framework called successfully! (Configure API keys in Vercel to send real emails)');
+      } else {
+        alert('Failed to send email.');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Error sending email.');
+    } finally {
+      setIsEmailing(false);
+    }
+  };
+
+  const handleSendSMS = async () => {
+    if (!guest.phone) return alert('No phone provided for this guest.');
+    setIsSMSing(true);
+    try {
+      const res = await fetch('/api/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: guest.phone,
+          guestName: guest.name,
+          eventName,
+          ticketId: guest.id
+        })
+      });
+      if (res.ok) {
+        alert('SMS framework called successfully! (Configure API keys in Vercel to send real SMS)');
+      } else {
+        alert('Failed to send SMS.');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Error sending SMS.');
+    } finally {
+      setIsSMSing(false);
+    }
+  };
+
 
   return (
     <div className="modal-overlay">
@@ -69,10 +127,40 @@ export default function QRInvitation({ guest, eventName, eventLogo, onClose }) {
           </div>
         </div>
 
-        <div className="modal-actions">
-          <button className="btn-primary" onClick={handleDownload}>
-            Download Ticket
+        <div className="modal-actions" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem', width: '100%' }}>
+          <button className="btn-primary" onClick={handleDownload} style={{ width: '100%', justifyContent: 'center' }}>
+            📥 Download Ticket
           </button>
+          
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button 
+              className="btn-action" 
+              style={{ flex: 1, backgroundColor: '#25D366', color: 'white', borderColor: '#25D366', justifyContent: 'center' }}
+              onClick={() => {
+                const text = `Hi ${guest.name}, here is your invitation for ${eventName}. Please present your QR ticket at the entrance. Ticket ID: ${guest.id}`;
+                const url = `https://wa.me/${guest.phone?.replace(/[^0-9]/g, '') || ''}?text=${encodeURIComponent(text)}`;
+                window.open(url, '_blank');
+              }}
+            >
+              💬 WhatsApp
+            </button>
+            <button 
+              className="btn-action" 
+              style={{ flex: 1, justifyContent: 'center' }}
+              onClick={handleSendEmail}
+              disabled={isEmailing}
+            >
+              {isEmailing ? 'Sending...' : '📧 Email'}
+            </button>
+            <button 
+              className="btn-action" 
+              style={{ flex: 1, justifyContent: 'center' }}
+              onClick={handleSendSMS}
+              disabled={isSMSing}
+            >
+              {isSMSing ? 'Sending...' : '📱 SMS'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

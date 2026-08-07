@@ -20,6 +20,8 @@ function ExcelImport({ onImport, onReset, showReset = true, enabledProps = { cat
                 const guest = {
                     id: `guest_import_${Date.now()}_${index}`,
                     name: item.Name || item.name || 'Unknown',
+                    phone: item.Phone || item.phone || item['Phone Number'] || '',
+                    email: item.Email || item.email || item['Email Address'] || '',
                     arrived: false,
                     statuses: {}
                 };
@@ -64,7 +66,7 @@ function ExcelImport({ onImport, onReset, showReset = true, enabledProps = { cat
     };
 
     const downloadTemplate = () => {
-        const headers = ['Name'];
+        const headers = ['Name', 'Phone', 'Email'];
         if (enabledProps.category) headers.push('Category');
         if (enabledProps.table) headers.push('Table Number');
         

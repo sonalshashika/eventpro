@@ -38,7 +38,7 @@ function App() {
   
   // Manual Entry State
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newGuestForm, setNewGuestForm] = useState({ name: '', category: '', table: '', companions: 0, statuses: {} });
+  const [newGuestForm, setNewGuestForm] = useState({ name: '', category: '', table: '', companions: 0, phone: '', email: '', statuses: {} });
   
   // QR Invitation State
   const [selectedGuestForQR, setSelectedGuestForQR] = useState(null);
@@ -132,6 +132,8 @@ function App() {
       category: enabledProps.category ? newGuestForm.category : '',
       table: enabledProps.table ? newGuestForm.table : '',
       companions: newGuestForm.companions || 0,
+      phone: newGuestForm.phone || '',
+      email: newGuestForm.email || '',
       arrived: false,
       statuses: newGuestForm.statuses || {}
     };
@@ -139,7 +141,7 @@ function App() {
     const updatedGuests = [...guests, newGuest];
     set(ref(db, `eventData/${currentEventId}/guests`), updatedGuests);
     logAction(currentEventId, user, 'Added Guest', `Guest: ${newGuest.name}`);
-    setNewGuestForm({ name: '', category: '', table: '', companions: 0, statuses: {} });
+    setNewGuestForm({ name: '', category: '', table: '', companions: 0, phone: '', email: '', statuses: {} });
     setShowAddForm(false);
   };
 
@@ -539,6 +541,14 @@ function App() {
                     type="number" className="input-glass" placeholder="Companions / Plus-ones (0)" min="0" max="20"
                     value={newGuestForm.companions || ''} 
                     onChange={(e) => setNewGuestForm({...newGuestForm, companions: parseInt(e.target.value) || 0})}
+                  />
+                  <input 
+                    type="tel" className="input-glass" placeholder="Phone Number" 
+                    value={newGuestForm.phone} onChange={(e) => setNewGuestForm({...newGuestForm, phone: e.target.value})}
+                  />
+                  <input 
+                    type="email" className="input-glass" placeholder="Email Address" 
+                    value={newGuestForm.email} onChange={(e) => setNewGuestForm({...newGuestForm, email: e.target.value})}
                   />
                   
                   {/* Custom Columns in Form */}
