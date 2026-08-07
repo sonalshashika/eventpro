@@ -70,8 +70,13 @@ export default function QRInvitation({ guest, eventName, eventId, eventLogo, mes
            updateGuestField(guest.id, 'emailSentAt', Date.now(), guest.name);
         }
       } else {
-        const error = await res.json();
-        alert(`Failed to send email: ${error.message}`);
+        const errorText = await res.text();
+        try {
+          const errorObj = JSON.parse(errorText);
+          alert(`Failed to send email: ${errorObj.error || errorObj.message}`);
+        } catch (parseError) {
+          alert(`Failed to send email. Server responded with: ${errorText.substring(0, 100)}`);
+        }
       }
     } catch (e) {
       alert(`Error: ${e.message}`);
