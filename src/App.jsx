@@ -1315,9 +1315,9 @@ function AdminPanel({ columns, enabledProps }) {
                   type="password"
                   className="input-glass"
                   placeholder="re_XXXXXXXXXXXXXXXXXXXXXXXX"
-                  value={messagingSettings.apiKey}
+                  value={messagingSettings?.apiKey || ''}
                   onChange={(e) => {
-                    const newSettings = { ...messagingSettings, apiKey: e.target.value };
+                    const newSettings = { ...(messagingSettings || {}), apiKey: e.target.value };
                     setMessagingSettings(newSettings);
                     set(ref(db, `eventData/${currentEventId}/config/messaging`), newSettings);
                   }}
@@ -1330,9 +1330,9 @@ function AdminPanel({ columns, enabledProps }) {
                   type="text"
                   className="input-glass"
                   placeholder="tickets@resend.dev"
-                  value={messagingSettings.fromEmail}
+                  value={messagingSettings?.fromEmail || ''}
                   onChange={(e) => {
-                    const newSettings = { ...messagingSettings, fromEmail: e.target.value };
+                    const newSettings = { ...(messagingSettings || {}), fromEmail: e.target.value };
                     setMessagingSettings(newSettings);
                     set(ref(db, `eventData/${currentEventId}/config/messaging`), newSettings);
                   }}
@@ -1346,9 +1346,9 @@ function AdminPanel({ columns, enabledProps }) {
                   type="text"
                   className="input-glass"
                   placeholder="Your Ticket for {eventName}"
-                  value={messagingSettings.subject}
+                  value={messagingSettings?.subject || ''}
                   onChange={(e) => {
-                    const newSettings = { ...messagingSettings, subject: e.target.value };
+                    const newSettings = { ...(messagingSettings || {}), subject: e.target.value };
                     setMessagingSettings(newSettings);
                     set(ref(db, `eventData/${currentEventId}/config/messaging`), newSettings);
                   }}
@@ -1362,9 +1362,9 @@ function AdminPanel({ columns, enabledProps }) {
                   className="input-glass"
                   placeholder="<p>Hi {guestName}, here is your ticket!</p>"
                   rows={6}
-                  value={messagingSettings.htmlBody}
+                  value={messagingSettings?.htmlBody || ''}
                   onChange={(e) => {
-                    const newSettings = { ...messagingSettings, htmlBody: e.target.value };
+                    const newSettings = { ...(messagingSettings || {}), htmlBody: e.target.value };
                     setMessagingSettings(newSettings);
                     set(ref(db, `eventData/${currentEventId}/config/messaging`), newSettings);
                   }}
